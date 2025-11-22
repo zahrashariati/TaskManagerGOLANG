@@ -6,24 +6,20 @@ import (
 	"task_manager/internal/models" //task structs
 	"task_manager/internal/repo" //db operations
 	"task_manager/internal/cache" //cache operations
+	"task_manager/internal/producer" //Kafka producer interface
 	"log" //for logging
 )
 
 type TaskService struct { //share same instances of repo and cache across different methods
 	repo     repo.TaskRepositoryInterface //holds reference to TaskRepository interface
 	cache    cache.CacheInterface         //holds pointer to Cache interface
-	producer ProducerInterface             //holds reference to Kafka producer (optional)
-}
-
-// ProducerInterface defines the interface for publishing events to Kafka
-type ProducerInterface interface {
-	PublishTaskScheduledEvent(task *models.Task) error
+	producer producer.ProducerInterface   //holds reference to Kafka producer (optional)
 }
 
 //Constructor: returns pointer to TaskService struct
 //DI: Dependency Injection - allows flexibility in how dependencies are provided
 //creates service with those dependencies
-func NewTaskService(repo repo.TaskRepositoryInterface, cache cache.CacheInterface, producer ProducerInterface) *TaskService {
+func NewTaskService(repo repo.TaskRepositoryInterface, cache cache.CacheInterface, producer producer.ProducerInterface) *TaskService {
 	return &TaskService{
 		repo:     repo,
 		cache:    cache,

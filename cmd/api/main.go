@@ -81,7 +81,7 @@ func main() {
 	}
 
 	// Initialize Kafka producer (optional - fails gracefully if Kafka unavailable)
-	var kafkaProducer services.ProducerInterface
+	var kafkaProducer producer.ProducerInterface
 	if cfg.KafkaBrokerURL != "" {
 		producer, err := producer.NewProducer(cfg.KafkaBrokerURL, "task_scheduled")
 		if err != nil {

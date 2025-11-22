@@ -38,7 +38,7 @@ func (r *ScheduledNotificationRepository) Add(event models.TaskScheduledEvent, t
 	return err
 }
 
-// GetDueTasks returns all tasks that are due (today or in the past) and not yet notified
+// GetDueTasks returns all tasks that are due (date and time) and not yet notified
 func (r *ScheduledNotificationRepository) GetDueTasks() ([]*models.ScheduledNotification, error) {
 	query := `
 		SELECT id, event_id, event_type, task_id, user_id, title, description, 
@@ -46,7 +46,7 @@ func (r *ScheduledNotificationRepository) GetDueTasks() ([]*models.ScheduledNoti
 		       notified, created_at, processed_at
 		FROM scheduled_notifications
 		WHERE notified = FALSE
-		AND DATE(due_date) <= CURRENT_DATE
+		AND due_date <= CURRENT_TIMESTAMP
 		ORDER BY due_date ASC`
 	
 	rows, err := r.db.Query(query)

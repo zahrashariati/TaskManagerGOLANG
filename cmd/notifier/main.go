@@ -62,12 +62,12 @@ func main() {
 	kafkaConsumer := consumer.NewConsumer(brokerURL)
 	defer kafkaConsumer.Close()
 
-	// Create scheduler (checks every 1 hour)
+	// Create scheduler (checks every 15 minutes)
 	scheduler := scheduler.NewScheduler(
 		taskStorage,
 		notifierService,
 		kafkaConsumer,
-		1*time.Hour, // Check every hour
+		15*time.Minute, // Check every 15 minutes
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -90,7 +90,7 @@ func main() {
 
 	log.Println("Notifier service started")
 	log.Println("- Consumer: Reading messages from Kafka and storing them")
-	log.Println("- Scheduler: Checking stored tasks every 1 hour")
+	log.Println("- Scheduler: Checking stored tasks every 15 minutes")
 	log.Println("Press Ctrl+C to stop")
 
 	// Wait for interrupt signal

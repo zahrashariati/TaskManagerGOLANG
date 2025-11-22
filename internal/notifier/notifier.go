@@ -16,18 +16,14 @@ func NewNotifier() *Notifier {
 func (n *Notifier) ProcessEvent(event models.TaskScheduledEvent) error {
 	now := time.Now()
 	
-	// Compare dates only (ignore time) - check if task is due today or overdue
-	dueDateOnly := time.Date(event.DueDate.Year(), event.DueDate.Month(), event.DueDate.Day(), 0, 0, 0, 0, event.DueDate.Location())
-	todayOnly := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	
-	// Task is due if due_date is today or in the past
-	if dueDateOnly.Before(todayOnly) || dueDateOnly.Equal(todayOnly) {
+	// Compare full timestamp (date AND time) - task is due if due_date <= now
+	if event.DueDate.Before(now) || event.DueDate.Equal(now) {
 		return n.sendNotification(event)
 	} else {
-		fmt.Printf("Task %d is not due yet (due: %s, today: %s)\n", 
+		fmt.Printf("Task %d is not due yet (due: %s, now: %s)\n", 
 			event.TaskID, 
-			dueDateOnly.Format("2006-01-02"), 
-			todayOnly.Format("2006-01-02"))
+			event.DueDate.Format(time.RFC3339), 
+			now.Format(time.RFC3339))
 		return nil
 	}
 }

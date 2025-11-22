@@ -45,26 +45,17 @@ func (s *Storage) Add(event models.TaskScheduledEvent, msg *kafka.Message) {
 	}
 }
 
-// GetAllDueTasks returns all tasks that are due (today or in the past)
+// GetAllDueTasks returns all tasks that are due (date and time)
 func (s *Storage) GetAllDueTasks() []*ScheduledTask {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	
 	var dueTasks []*ScheduledTask
 	now := time.Now()
-	todayOnly := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	
 	for _, task := range s.tasks {
-		dueDateOnly := time.Date(
-			task.Event.DueDate.Year(),
-			task.Event.DueDate.Month(),
-			task.Event.DueDate.Day(),
-			0, 0, 0, 0,
-			task.Event.DueDate.Location(),
-		)
-		
-		// Task is due if due_date is today or in the past
-		if dueDateOnly.Before(todayOnly) || dueDateOnly.Equal(todayOnly) {
+		// Task is due if due_date <= now (checks both date AND time)
+		if task.Event.DueDate.Before(now) || task.Event.DueDate.Equal(now) {
 			dueTasks = append(dueTasks, task)
 		}
 	}

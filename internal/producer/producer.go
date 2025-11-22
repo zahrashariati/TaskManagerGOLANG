@@ -11,6 +11,13 @@ import (
 	"github.com/google/uuid"
 )
 
+// ProducerInterface defines the interface for publishing events to Kafka
+// This interface should be implemented by any Kafka producer
+type ProducerInterface interface {
+	PublishTaskScheduledEvent(task *models.Task) error
+	Close()
+}
+
 // Producer handles publishing events to Kafka
 type Producer struct {
 	producer *kafka.Producer
