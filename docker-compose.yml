@@ -1,0 +1,131 @@
+services:
+  # CockroachDB Database
+  cockroachdb:
+    image: cockroachdb/cockroach:latest-v23.2
+    container_name: taskmanager-cockroachdb
+    command: start-single-node --insecure
+    ports:
+      - "26257:26257"
+      - "8081:8080"  
+    volumes:
+      - cockroachdb-data:/cockroach/cockroach-data
+    healthcheck:
+      test: ["CMD-SHELL", "cockroach sql --insecure -e 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Database Initialization
+  db-init:
+    image: cockroachdb/cockroach:latest-v23.2
+    container_name: taskmanager-db-init
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        sleep 5
+        cockroach sql --insecure --host=cockroachdb:26257 --execute="CREATE DATABASE IF NOT EXISTS taskmanager;"
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+    restart: "no"
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: taskmanager-redis
+    ports:
+      - "6380:6379"  # Mapped to 6380 to avoid conflict with local Redis
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Go API Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: taskmanager-api
+    ports:
+      - "3000:8080"
+    volumes:
+      - ./keys:/app/keys:ro  # Mount keys directory (read-only)
+    environment:
+      # Docker service names (override .env.docker if needed)
+      - DATABASE_URL=postgresql://root@cockroachdb:26257/taskmanager?sslmode=disable
+      - REDIS_URL=redis:6379
+      - PORT=8080
+      - JWT_PRIVATE_KEY_PATH=/app/keys/private.pem
+      - JWT_PUBLIC_KEY_PATH=/app/keys/public.pem
+      - KAFKA_BROKER_URL=kafka:29092
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Zookeeper (required by Kafka)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: taskmanager-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka Broker
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: taskmanager-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"      # External access (from your host machine)
+      - "9093:9093"      # Internal Docker network
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"  # Auto-create topics (good for development)
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Notifier Service (Kafka Consumer)
+  notifier:
+    build:
+      context: .
+      dockerfile: Dockerfile.notifier
+    container_name: taskmanager-notifier
+    environment:
+      - KAFKA_BROKER_URL=kafka:29092
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  cockroachdb-data:
+  redis-data:
+

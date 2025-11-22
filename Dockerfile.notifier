@@ -1,0 +1,35 @@
+# Build stage
+FROM golang:1.23-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Install git and build dependencies (for confluent-kafka-go C library)
+RUN apk add --no-cache git gcc musl-dev librdkafka-dev pkgconfig
+
+# Copy go mod files
+COPY go.mod go.sum ./
+
+# Download dependencies and ensure go.mod is up to date
+RUN go mod download && go mod tidy
+
+# Copy source code
+COPY . .
+
+# Build the notifier application (with CGO enabled for confluent-kafka-go)
+RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o notifier ./cmd/notifier
+
+# Final stage
+FROM alpine:latest
+
+# Install runtime dependencies (librdkafka for confluent-kafka-go)
+RUN apk --no-cache add ca-certificates librdkafka
+
+WORKDIR /app
+
+# Copy the binary from builder
+COPY --from=builder /app/notifier .
+
+# Run the application
+CMD ["./notifier"]
+
