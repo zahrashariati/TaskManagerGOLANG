@@ -120,6 +120,8 @@ services:
     container_name: taskmanager-notifier
     environment:
       - KAFKA_BROKER_URL=kafka:29092
+      - STORAGE_TYPE=db
+      - DATABASE_URL=postgresql://root@cockroachdb:26257/taskmanager?sslmode=disable
     depends_on:
       kafka:
         condition: service_healthy

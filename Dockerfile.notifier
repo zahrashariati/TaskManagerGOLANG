@@ -1,11 +1,17 @@
-# Build stage
-FROM golang:1.23-alpine AS builder
+# Build stage - Use Debian instead of Alpine (better compatibility with confluent-kafka-go)
+FROM golang:1.23-bullseye AS builder
 
 # Set working directory
 WORKDIR /app
 
-# Install git and build dependencies (for confluent-kafka-go C library)
-RUN apk add --no-cache git gcc musl-dev librdkafka-dev pkgconfig
+# Install build dependencies (for confluent-kafka-go C library)
+RUN apt-get update && apt-get install -y \
+    git \
+    gcc \
+    g++ \
+    librdkafka-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy go mod files
 COPY go.mod go.sum ./
@@ -19,11 +25,14 @@ COPY . .
 # Build the notifier application (with CGO enabled for confluent-kafka-go)
 RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o notifier ./cmd/notifier
 
-# Final stage
-FROM alpine:latest
+# Final stage - Use Debian slim instead of Alpine
+FROM debian:bullseye-slim
 
 # Install runtime dependencies (librdkafka for confluent-kafka-go)
-RUN apk --no-cache add ca-certificates librdkafka
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    librdkafka1 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

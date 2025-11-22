@@ -10,17 +10,24 @@ import (
 )
 
 type TaskService struct { //share same instances of repo and cache across different methods
-	repo repo.TaskRepositoryInterface //holds reference to TaskRepository interface
-	cache cache.CacheInterface //holds pointer to Cache interface
+	repo     repo.TaskRepositoryInterface //holds reference to TaskRepository interface
+	cache    cache.CacheInterface         //holds pointer to Cache interface
+	producer ProducerInterface             //holds reference to Kafka producer (optional)
+}
+
+// ProducerInterface defines the interface for publishing events to Kafka
+type ProducerInterface interface {
+	PublishTaskScheduledEvent(task *models.Task) error
 }
 
 //Constructor: returns pointer to TaskService struct
 //DI: Dependency Injection - allows flexibility in how dependencies are provided
 //creates service with those dependencies
-func NewTaskService(repo repo.TaskRepositoryInterface, cache cache.CacheInterface) *TaskService {
+func NewTaskService(repo repo.TaskRepositoryInterface, cache cache.CacheInterface, producer ProducerInterface) *TaskService {
 	return &TaskService{
-		repo: repo,
-		cache: cache,
+		repo:     repo,
+		cache:    cache,
+		producer: producer,
 	}
 }
 
@@ -74,8 +81,17 @@ func (s *TaskService) CreateTask(userID int, task *models.Task) error {
 	if err != nil {
 		return err
 	}
-	task.ID = id  // Set the ID returned from database
+	task.ID = id // Set the ID returned from database
 	s.cache.Invalidate() //invalidate cache
+
+	// Publish event to Kafka if task has due_date (fire-and-forget)
+	if s.producer != nil && task.DueDate != nil {
+		if err := s.producer.PublishTaskScheduledEvent(task); err != nil {
+			// Log error but don't fail the request (fire-and-forget)
+			log.Printf("⚠️ Failed to publish task scheduled event: %v", err)
+		}
+	}
+
 	return nil
 }
 
@@ -140,6 +156,15 @@ func (s *TaskService) UpdateTask(id int, userID int, task *models.Task) (*models
 	if updatedTask.UserID != userID {
 		return nil, ErrTaskNotFound
 	}
+
+	// Publish event to Kafka if task has due_date (fire-and-forget)
+	if s.producer != nil && updatedTask.DueDate != nil {
+		if err := s.producer.PublishTaskScheduledEvent(updatedTask); err != nil {
+			// Log error but don't fail the request (fire-and-forget)
+			log.Printf("⚠️ Failed to publish task scheduled event: %v", err)
+		}
+	}
+
 	return updatedTask, nil
 }
 

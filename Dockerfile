@@ -1,11 +1,17 @@
-# Build stage
-FROM golang:1.23-alpine AS builder
+# Build stage - Use Debian instead of Alpine (better compatibility with confluent-kafka-go)
+FROM golang:1.23-bullseye AS builder
 
 # Set working directory
 WORKDIR /app
 
-# Install git (needed for some Go dependencies)
-RUN apk add --no-cache git
+# Install build dependencies (for confluent-kafka-go C library)
+RUN apt-get update && apt-get install -y \
+    git \
+    gcc \
+    g++ \
+    librdkafka-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy go mod files
 COPY go.mod go.sum ./
@@ -16,14 +22,17 @@ RUN go mod download && go mod tidy
 # Copy source code
 COPY . .
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/api
+# Build the application (with CGO enabled for confluent-kafka-go)
+RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/api
 
-# Final stage
-FROM alpine:latest
+# Final stage - Use Debian slim instead of Alpine
+FROM debian:bullseye-slim
 
-# Install ca-certificates for HTTPS
-RUN apk --no-cache add ca-certificates
+# Install runtime dependencies (librdkafka for confluent-kafka-go)
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    librdkafka1 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

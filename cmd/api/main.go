@@ -16,6 +16,7 @@ import (
 	"task_manager/internal/handlers" //handler layer
 	"task_manager/internal/cache"    //cache operations
 	"task_manager/internal/auth"    //JWT service
+	"task_manager/internal/producer" //Kafka producer
 )
 
 func main() {
@@ -79,12 +80,28 @@ func main() {
 		log.Fatal("Failed to initialize JWT service:", err)
 	}
 
+	// Initialize Kafka producer (optional - fails gracefully if Kafka unavailable)
+	var kafkaProducer services.ProducerInterface
+	if cfg.KafkaBrokerURL != "" {
+		producer, err := producer.NewProducer(cfg.KafkaBrokerURL, "task_scheduled")
+		if err != nil {
+			log.Printf("⚠️ Warning: Failed to initialize Kafka producer: %v. Continuing without Kafka.", err)
+			kafkaProducer = nil
+		} else {
+			defer producer.Close()
+			kafkaProducer = producer
+			log.Printf("✅ Kafka producer initialized: %s", cfg.KafkaBrokerURL)
+		}
+	} else {
+		log.Println("ℹ️ KAFKA_BROKER_URL not set, running without Kafka")
+	}
+
 	// Initialize layers (each layer depends on the previous layer)
 	taskRepo := repo.NewTaskRepository(db)              //create db operations
 	userRepo := repo.NewUserRepository(db, "")          //create db operations (secretKey not needed for RS256)
 	rtkRepo := repo.NewRTKRepository(db)                //create db operations
 	cacheService := cache.NewCache(redisClient)        //create cache operations
-	taskService := services.NewTaskService(taskRepo, cacheService) //logic layer
+	taskService := services.NewTaskService(taskRepo, cacheService, kafkaProducer) //logic layer with producer
 	taskHandler := handlers.NewTaskHandler(taskService) //create handler layer
 	authService := services.NewAuthService(userRepo, rtkRepo) //logic layer
 	authHandler := handlers.NewAuthHandler(authService, jwtService) //handler layer

@@ -9,6 +9,7 @@ package repo
 import (
 	"database/sql" //db interface
 	"fmt"
+	"log"
 	_ "github.com/lib/pq" //postgres driver (blank import registers driver)
 )
 
@@ -53,11 +54,18 @@ func InitDB(connString string) (*sql.DB, error) { //Returns pointer to sql.DB an
 			description TEXT,
 			completed BOOLEAN DEFAULT FALSE,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			priority TEXT DEFAULT 'medium'
+			priority TEXT DEFAULT 'medium',
+			due_date TIMESTAMP
 		)`
 	if _, err := db.Exec(createTasksTable); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create tasks table: %w", err)
+	}
+
+	// Add due_date column if it doesn't exist (for existing databases)
+	if _, err := db.Exec("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS due_date TIMESTAMP"); err != nil {
+		// Ignore error if column already exists
+		log.Printf("Note: due_date column may already exist: %v", err)
 	}
 
 	createRTKTable := `	
@@ -80,39 +88,39 @@ func InitDB(connString string) (*sql.DB, error) { //Returns pointer to sql.DB an
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
 
-	// // Create scheduled_notifications table for Kafka events
-	// createScheduledNotificationsTable := `
-	// 	CREATE TABLE IF NOT EXISTS scheduled_notifications (
-	// 		id SERIAL PRIMARY KEY,
-	// 		event_id TEXT NOT NULL UNIQUE,
-	// 		event_type TEXT NOT NULL,
-	// 		task_id INTEGER NOT NULL,
-	// 		user_id INTEGER NOT NULL,
-	// 		title TEXT NOT NULL,
-	// 		description TEXT,
-	// 		due_date TIMESTAMP NOT NULL,
-	// 		event_timestamp TIMESTAMP NOT NULL,
-	// 		kafka_topic TEXT NOT NULL,
-	// 		kafka_partition INTEGER NOT NULL,
-	// 		kafka_offset BIGINT NOT NULL,
-	// 		notified BOOLEAN DEFAULT FALSE,
-	// 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	// 		processed_at TIMESTAMP
-	// 	)`
-	// if _, err := db.Exec(createScheduledNotificationsTable); err != nil {
-	// 	return nil, fmt.Errorf("failed to create scheduled_notifications table: %w", err)
-	// }
+	// Create scheduled_notifications table for Kafka events
+	createScheduledNotificationsTable := `
+		CREATE TABLE IF NOT EXISTS scheduled_notifications (
+			id SERIAL PRIMARY KEY,
+			event_id TEXT NOT NULL UNIQUE,
+			event_type TEXT NOT NULL,
+			task_id INTEGER NOT NULL,
+			user_id INTEGER NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT,
+			due_date TIMESTAMP NOT NULL,
+			event_timestamp TIMESTAMP NOT NULL,
+			kafka_topic TEXT NOT NULL,
+			kafka_partition INTEGER NOT NULL,
+			kafka_offset BIGINT NOT NULL,
+			notified BOOLEAN DEFAULT FALSE,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			processed_at TIMESTAMP
+		)`
+	if _, err := db.Exec(createScheduledNotificationsTable); err != nil {
+		return nil, fmt.Errorf("failed to create scheduled_notifications table: %w", err)
+	}
 
-	// // Create indexes for better query performance
-	// if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_due_date ON scheduled_notifications(due_date)"); err != nil {
-	// 	return nil, fmt.Errorf("failed to create index: %w", err)
-	// }
-	// if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_notified ON scheduled_notifications(notified)"); err != nil {
-	// 	return nil, fmt.Errorf("failed to create index: %w", err)
-	// }
-	// if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_event_id ON scheduled_notifications(event_id)"); err != nil {
-	// 	return nil, fmt.Errorf("failed to create index: %w", err)
-	// }
+	// Create indexes for better query performance
+	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_due_date ON scheduled_notifications(due_date)"); err != nil {
+		return nil, fmt.Errorf("failed to create index: %w", err)
+	}
+	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_notified ON scheduled_notifications(notified)"); err != nil {
+		return nil, fmt.Errorf("failed to create index: %w", err)
+	}
+	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_scheduled_notifications_event_id ON scheduled_notifications(event_id)"); err != nil {
+		return nil, fmt.Errorf("failed to create index: %w", err)
+	}
 
 	return db, nil
 }

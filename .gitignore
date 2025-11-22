@@ -38,6 +38,9 @@ keys/private.pem
 # Logs
 *.log
 
+# Documentation
+docs/
+
 # Build output
 main
 dist/
