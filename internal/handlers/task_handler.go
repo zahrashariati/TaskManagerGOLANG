@@ -6,17 +6,15 @@ package handlers
 import (
 	"errors"                                 //standard library errors (for errors.Is)
 	"strconv"                                //for converting strings to integers
-	"task_manager/internal/models"           //task models
-	"task_manager/internal/services"         //logic layer
-
+	"github.com/zahrashariati/task-manager/internal/models"           //task models
 	"github.com/gofiber/fiber/v2" //Fiber web framework
 )
 
 type TaskHandler struct {
-	service services.TaskServiceInterface //holds reference to TaskService interface
+	service TaskServiceInterface //holds reference to TaskService interface
 }
 
-func NewTaskHandler(service services.TaskServiceInterface) *TaskHandler {
+func NewTaskHandler(service TaskServiceInterface) *TaskHandler {
 	return &TaskHandler{service: service}
 }
 

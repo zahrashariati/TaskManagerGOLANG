@@ -5,21 +5,17 @@ import (
 	"database/sql"
 	"errors"
 	"time"
-	"task_manager/internal/models"
+	"github.com/zahrashariati/task-manager/internal/models"
 )
 
-type TaskRepository struct {
-	db *sql.DB //holds db connection- pointer to sql.DB struct
+// NewTaskRepository creates a new task repository
+func NewTaskRepository(db *sql.DB) *Repository {
+	return &Repository{db: db}
 }
 
-func NewTaskRepository(db *sql.DB) *TaskRepository { //pointer to TaskRepository struct
-	return &TaskRepository{db: db}//pointer so methods can access and modify the db connection
-}
-
-
-// r means method of TaskRepository struct - r is like self 
+// r means method of Repository struct - r is like self 
 // output int(new task id) and error
-func (r *TaskRepository) Create(task *models.Task) (int, error) {
+func (r *Repository) Create(task *models.Task) (int, error) {
 	// 	// Step 1: Insert task
 	// query := "INSERT INTO tasks (user_id, title, description, priority) VALUES ($1, $2, $3, $4)"
 	// _, err := r.db.Exec(query, task.UserID, task.Title, task.Description, task.Priority)
@@ -50,7 +46,7 @@ func (r *TaskRepository) Create(task *models.Task) (int, error) {
 	return id, nil
 }
 
-func (r *TaskRepository) GetByID(id int) (*models.Task, error) {
+func (r *Repository) GetTaskByID(id int) (*models.Task, error) {
 	// Local error definitions
 	var (
 		ErrTaskNotFound       = errors.New("task not found")
@@ -69,7 +65,7 @@ func (r *TaskRepository) GetByID(id int) (*models.Task, error) {
 	return &task, nil //returns address of task struct- more efficient than returning the struct itself
 }
 
-func (r *TaskRepository) Update(id int, userID int, task *models.Task) error {
+func (r *Repository) Update(id int, userID int, task *models.Task) error {
 	// Local error definitions
 	var (
 		ErrTaskNotFound      = errors.New("task not found")
@@ -77,7 +73,7 @@ func (r *TaskRepository) Update(id int, userID int, task *models.Task) error {
 	)
 
 	// First check if task exists and belongs to user
-	existingTask, err := r.GetByID(id)
+	existingTask, err := r.GetTaskByID(id)
 	if err != nil {
 		return ErrTaskNotFound
 	}
@@ -94,7 +90,7 @@ func (r *TaskRepository) Update(id int, userID int, task *models.Task) error {
 	return nil
 }
 
-func (r *TaskRepository) Delete(id int, userID int) error {
+func (r *Repository) Delete(id int, userID int) error {
 	// Local error definitions
 	var (
 		ErrTaskNotFound      = errors.New("task not found")
@@ -115,7 +111,7 @@ func (r *TaskRepository) Delete(id int, userID int) error {
 	}
 	return nil
 }
-func (r *TaskRepository) GetAll(userID int, showCompleted bool) ([]models.Task, error) {
+func (r *Repository) GetAll(userID int, showCompleted bool) ([]models.Task, error) {
 	// Local error definitions
 	var ErrDatabaseQueryFailed = errors.New("failed to query database")
 
@@ -153,7 +149,7 @@ func (r *TaskRepository) GetAll(userID int, showCompleted bool) ([]models.Task, 
 	return tasks, nil
 }
 
-func (r *TaskRepository) Complete(id int, userID int) error {
+func (r *Repository) Complete(id int, userID int) error {
 	// Local error definitions
 	var (
 		ErrTaskNotFound      = errors.New("task not found")
@@ -161,7 +157,7 @@ func (r *TaskRepository) Complete(id int, userID int) error {
 	)
 
 	// First check if task exists and belongs to user
-	existingTask, err := r.GetByID(id)
+	existingTask, err := r.GetTaskByID(id)
 	if err != nil {
 		return ErrTaskNotFound
 	}

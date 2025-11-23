@@ -2,18 +2,16 @@ package handlers
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"task_manager/internal/models"
-	"task_manager/internal/services"
-	"task_manager/internal/auth"
+	"github.com/zahrashariati/task-manager/internal/models"
 	"time"
 )
 
 type AuthHandler struct {
-	authService services.AuthServiceInterface
-	jwtService  *auth.JWTService
+	authService AuthServiceInterface
+	jwtService  JWTServiceInterface
 }
 
-func NewAuthHandler(authService services.AuthServiceInterface, jwtService *auth.JWTService) *AuthHandler {
+func NewAuthHandler(authService AuthServiceInterface, jwtService JWTServiceInterface) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
 		jwtService:  jwtService,

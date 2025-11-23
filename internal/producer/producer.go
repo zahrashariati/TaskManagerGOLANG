@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"task_manager/internal/models"
+	"github.com/zahrashariati/task-manager/internal/models"
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"

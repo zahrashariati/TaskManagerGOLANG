@@ -1,18 +1,29 @@
+// Database storage in scheduled_notification_repo.go
+//Add, GetAllDueTasks, Remove
+
 package storage
 
 import (
-	"task_manager/internal/models"
-	"task_manager/internal/repo"
+	"github.com/zahrashariati/task-manager/internal/models"
+	"github.com/zahrashariati/task-manager/internal/scheduler"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
+// ScheduledNotificationRepositoryInterface defines the interface for scheduled notification repository operations
+// (interfaces should be defined where they're used - storage package uses this)
+type ScheduledNotificationRepositoryInterface interface {
+	Add(event models.TaskScheduledEvent, topic string, partition int32, offset int64) error
+	GetDueTasks() ([]*models.ScheduledNotification, error)
+	MarkAsNotified(eventID string) error
+}
+
 // DBStorage implements Storage interface using database
 type DBStorage struct {
-	repo *repo.ScheduledNotificationRepository
+	repo ScheduledNotificationRepositoryInterface
 }
 
 // NewDBStorage creates a new database-backed storage
-func NewDBStorage(repo *repo.ScheduledNotificationRepository) *DBStorage {
+func NewDBStorage(repo ScheduledNotificationRepositoryInterface) *DBStorage {
 	return &DBStorage{repo: repo}
 }
 
@@ -32,26 +43,27 @@ func (s *DBStorage) Add(event models.TaskScheduledEvent, msg *kafka.Message) {
 }
 
 // GetAllDueTasks returns all tasks that are due (from database)
-func (s *DBStorage) GetAllDueTasks() []*ScheduledTask {
+func (s *DBStorage) GetAllDueTasks() []*scheduler.ScheduledTask {
 	dbTasks, err := s.repo.GetDueTasks()
 	if err != nil {
 		// Log error and return empty slice
-		return []*ScheduledTask{}
+		return []*scheduler.ScheduledTask{}
 	}
 	
 	// Convert database tasks to ScheduledTask format
-	tasks := make([]*ScheduledTask, 0, len(dbTasks))
+	tasks := make([]*scheduler.ScheduledTask, 0, len(dbTasks))
 	for _, dbTask := range dbTasks {
 		// Reconstruct Kafka message metadata (we can't recreate the full Message object,
 		// but we store partition/offset for committing)
-		task := &ScheduledTask{
+		task := &scheduler.ScheduledTask{
 			Event: dbTask.ConvertToEvent(),
 			// Store Kafka metadata in a way we can use for committing
-			KafkaMetadata: &KafkaMetadata{
+			KafkaMetadata: &scheduler.KafkaMetadata{
 				Topic:     dbTask.KafkaTopic,
 				Partition: dbTask.KafkaPartition,
 				Offset:    dbTask.KafkaOffset,
 			},
+			Processed: dbTask.Notified,
 		}
 		tasks = append(tasks, task)
 	}
@@ -59,22 +71,11 @@ func (s *DBStorage) GetAllDueTasks() []*ScheduledTask {
 	return tasks
 }
 
-// Remove removes a task from storage (marks as notified in DB)
+// Remove removes a task from storage (marks as notified in DB - soft delete)
 func (s *DBStorage) Remove(eventID string) {
 	// Mark as notified instead of deleting (for audit trail)
 	if err := s.repo.MarkAsNotified(eventID); err != nil {
 		// Log error
 		return
 	}
-	
-	// Optionally delete after marking (uncomment if you want to delete)
-	// s.repo.Delete(eventID)
 }
-
-// GetAll returns all tasks (for debugging) - not implemented for DB
-func (s *DBStorage) GetAll() []*ScheduledTask {
-	// Not needed for DB storage, but implement if needed
-	return []*ScheduledTask{}
-}
-
-

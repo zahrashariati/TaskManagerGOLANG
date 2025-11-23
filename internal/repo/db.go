@@ -68,6 +68,7 @@ func InitDB(connString string) (*sql.DB, error) { //Returns pointer to sql.DB an
 		log.Printf("Note: due_date column may already exist: %v", err)
 	}
 
+
 	createRTKTable := `	
 		CREATE TABLE IF NOT EXISTS refresh_tokens (
 			id SERIAL PRIMARY KEY,

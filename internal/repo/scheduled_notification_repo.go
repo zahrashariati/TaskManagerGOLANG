@@ -1,20 +1,19 @@
+// Methods: Add, GetDueTasks, MarkAsNotified, Delete
 package repo
 
 import (
 	"database/sql"
-	"task_manager/internal/models"
+	"time"
+	"github.com/zahrashariati/task-manager/internal/models"
 )
 
-type ScheduledNotificationRepository struct {
-	db *sql.DB
-}
-
-func NewScheduledNotificationRepository(db *sql.DB) *ScheduledNotificationRepository {
-	return &ScheduledNotificationRepository{db: db}
+// NewScheduledNotificationRepository creates a new scheduled notification repository
+func NewScheduledNotificationRepository(db *sql.DB) *Repository {
+	return &Repository{db: db}
 }
 
 // Add stores a scheduled notification in the database
-func (r *ScheduledNotificationRepository) Add(event models.TaskScheduledEvent, topic string, partition int32, offset int64) error {
+func (r *Repository) Add(event models.TaskScheduledEvent, topic string, partition int32, offset int64) error {
 	query := `
 		INSERT INTO scheduled_notifications 
 		(event_id, event_type, task_id, user_id, title, description, due_date, event_timestamp, kafka_topic, kafka_partition, kafka_offset)
@@ -39,17 +38,21 @@ func (r *ScheduledNotificationRepository) Add(event models.TaskScheduledEvent, t
 }
 
 // GetDueTasks returns all tasks that are due (date and time) and not yet notified
-func (r *ScheduledNotificationRepository) GetDueTasks() ([]*models.ScheduledNotification, error) {
+// Uses UTC timezone for accurate comparison
+func (r *Repository) GetDueTasks() ([]*models.ScheduledNotification, error) {
+	// Use current UTC time for comparison (more reliable than database timezone functions)
+	nowUTC := time.Now().UTC()
+	
 	query := `
 		SELECT id, event_id, event_type, task_id, user_id, title, description, 
 		       due_date, event_timestamp, kafka_topic, kafka_partition, kafka_offset, 
 		       notified, created_at, processed_at
 		FROM scheduled_notifications
 		WHERE notified = FALSE
-		AND due_date <= CURRENT_TIMESTAMP
+		AND due_date <= $1
 		ORDER BY due_date ASC`
 	
-	rows, err := r.db.Query(query)
+	rows, err := r.db.Query(query, nowUTC)
 	if err != nil {
 		return nil, err
 	}
@@ -91,8 +94,8 @@ func (r *ScheduledNotificationRepository) GetDueTasks() ([]*models.ScheduledNoti
 	return tasks, rows.Err()
 }
 
-// MarkAsNotified marks a notification as sent and records the processing time
-func (r *ScheduledNotificationRepository) MarkAsNotified(eventID string) error {
+// MarkAsNotified marks a notification as notified and records the processing time (soft delete)
+func (r *Repository) MarkAsNotified(eventID string) error {
 	query := `
 		UPDATE scheduled_notifications
 		SET notified = TRUE, processed_at = CURRENT_TIMESTAMP
@@ -102,8 +105,8 @@ func (r *ScheduledNotificationRepository) MarkAsNotified(eventID string) error {
 	return err
 }
 
-// Delete removes a notification from the database (after successful processing)
-func (r *ScheduledNotificationRepository) Delete(eventID string) error {
+// DeleteNotification removes a notification from the database (hard delete - not recommended)
+func (r *Repository) DeleteNotification(eventID string) error {
 	query := `DELETE FROM scheduled_notifications WHERE event_id = $1`
 	_, err := r.db.Exec(query, eventID)
 	return err

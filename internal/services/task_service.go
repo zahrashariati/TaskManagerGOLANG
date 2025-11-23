@@ -3,23 +3,21 @@ package services
 
 import (
 	"errors" //standard library errors (for errors.Is)
-	"task_manager/internal/models" //task structs
-	"task_manager/internal/repo" //db operations
-	"task_manager/internal/cache" //cache operations
-	"task_manager/internal/producer" //Kafka producer interface
+	"github.com/zahrashariati/task-manager/internal/models" //task structs
+	"github.com/zahrashariati/task-manager/internal/producer" //Kafka producer interface
 	"log" //for logging
 )
 
 type TaskService struct { //share same instances of repo and cache across different methods
-	repo     repo.TaskRepositoryInterface //holds reference to TaskRepository interface
-	cache    cache.CacheInterface         //holds pointer to Cache interface
+	repo     TaskRepositoryInterface //holds reference to TaskRepository interface
+	cache    CacheInterface         //holds pointer to Cache interface
 	producer producer.ProducerInterface   //holds reference to Kafka producer (optional)
 }
 
 //Constructor: returns pointer to TaskService struct
 //DI: Dependency Injection - allows flexibility in how dependencies are provided
 //creates service with those dependencies
-func NewTaskService(repo repo.TaskRepositoryInterface, cache cache.CacheInterface, producer producer.ProducerInterface) *TaskService {
+func NewTaskService(repo TaskRepositoryInterface, cache CacheInterface, producer producer.ProducerInterface) *TaskService {
 	return &TaskService{
 		repo:     repo,
 		cache:    cache,
@@ -110,7 +108,7 @@ func (s *TaskService) GetTaskByID(id int, userID int) (*models.Task, error) {
 	
 	// Cache miss - get from database
 	log.Printf("Cache miss for GetTaskByID %d\n", id)
-	task, err := s.repo.GetByID(id)
+	task, err := s.repo.GetTaskByID(id)
 	if err != nil {
 		if errors.Is(err, ErrTaskNotFound) {
 			return nil, ErrTaskNotFound
@@ -144,7 +142,7 @@ func (s *TaskService) UpdateTask(id int, userID int, task *models.Task) (*models
 	s.cache.Invalidate() //invalidate cache
 	
 	// Fetch updated task from database to get all fields (ID, created_at, etc.)
-	updatedTask, err := s.repo.GetByID(id)
+	updatedTask, err := s.repo.GetTaskByID(id)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +196,7 @@ func (s *TaskService) CompleteTask(id int, userID int) (*models.Task, error) {
 	// Invalidate cache (data changed)
 	s.cache.Invalidate()
 	// Fetch updated task from database to get all fields
-	completedTask, err := s.repo.GetByID(id)
+	completedTask, err := s.repo.GetTaskByID(id)
 	if err != nil {
 		return nil, err
 	}

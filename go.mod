@@ -1,4 +1,4 @@
-module task_manager
+module github.com/zahrashariati/task-manager //github convension
 
 go 1.23
 

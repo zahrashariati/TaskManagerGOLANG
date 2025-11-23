@@ -15,9 +15,10 @@ package auth
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/zahrashariati/task-manager/internal/handlers"
 )
 
-func JWTMiddleware(jwtService *JWTService) fiber.Handler {
+func JWTMiddleware(jwtService handlers.JWTServiceInterface) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		tokenString, err := jwtService.GetTokenFromHeader(c)
 
@@ -35,7 +36,7 @@ func JWTMiddleware(jwtService *JWTService) fiber.Handler {
 			})
 		}
 
-		claims, err := jwtService.ValidateToken(tokenString)
+		claimsInterface, err := jwtService.ValidateToken(tokenString)
 
 		// Invalid token
 		if err != nil {
@@ -44,9 +45,17 @@ func JWTMiddleware(jwtService *JWTService) fiber.Handler {
 			})
 		}
 
+		// Type assert to ClaimsInterface
+		claims, ok := claimsInterface.(handlers.ClaimsInterface)
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Invalid token claims",
+			})
+		}
+
 		// Valid token
-		c.Locals("userID", claims.UserID)
-		c.Locals("username", claims.Username)
+		c.Locals("userID", claims.GetUserID())
+		c.Locals("username", claims.GetUsername())
 		return c.Next()
 	}
 }

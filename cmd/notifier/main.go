@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"log"
-	"task_manager/internal/consumer"
-	"task_manager/internal/notifier"
-	"task_manager/internal/storage"
-	"task_manager/internal/scheduler"
-	"task_manager/internal/config"
-	"task_manager/internal/repo"
+	"github.com/zahrashariati/task-manager/internal/consumer"
+	"github.com/zahrashariati/task-manager/internal/notifier"
+	"github.com/zahrashariati/task-manager/internal/scheduler"
+	"github.com/zahrashariati/task-manager/internal/storage"
+	"github.com/zahrashariati/task-manager/internal/config"
+	"github.com/zahrashariati/task-manager/internal/repo"
 	"github.com/joho/godotenv"
 	"os"
 	"os/signal"
@@ -28,14 +28,14 @@ func main() {
 	if brokerURL == "" {
 		brokerURL = "localhost:9092"
 	}
-
+//define type vars
 	// Choose storage type: "memory" or "db"
 	storageType := os.Getenv("STORAGE_TYPE")
 	if storageType == "" {
 		storageType = "memory" // Default to in-memory for simplicity
 	}
 
-	var taskStorage storage.StorageInterface
+	var taskStorage scheduler.StorageInterface
 	if storageType == "db" {
 		// Database storage (persistent, production-ready)
 		cfg := config.Load()
@@ -47,7 +47,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to connect to database: %v", err)
 		}
-		defer db.Close()
+		defer db.Close()//If error happens here, db.Close() still runs!
 		
 		notificationRepo := repo.NewScheduledNotificationRepository(db)
 		taskStorage = storage.NewDBStorage(notificationRepo)
@@ -62,11 +62,13 @@ func main() {
 	kafkaConsumer := consumer.NewConsumer(brokerURL)
 	defer kafkaConsumer.Close()
 
+	// Create callback function that processes due tasks
+	callback := notifierService.Callback
+
 	// Create scheduler (checks every 15 minutes)
 	scheduler := scheduler.NewScheduler(
 		taskStorage,
-		notifierService,
-		kafkaConsumer,
+		callback,
 		15*time.Minute, // Check every 15 minutes
 	)
 

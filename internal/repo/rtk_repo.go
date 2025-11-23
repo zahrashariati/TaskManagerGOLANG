@@ -3,19 +3,16 @@ package repo
 import (
 	"time"
 	"database/sql"
-	"task_manager/internal/models"
-	apperrors "task_manager/internal/errors"
+	"github.com/zahrashariati/task-manager/internal/models"
+	apperrors "github.com/zahrashariati/task-manager/internal/errors"
 )
 
-type RTKRepository struct {
-	db *sql.DB
+// NewRTKRepository creates a new refresh token repository
+func NewRTKRepository(db *sql.DB) *Repository {
+	return &Repository{db: db}
 }
 
-func NewRTKRepository(db *sql.DB) *RTKRepository {
-	return &RTKRepository{db: db}
-}
-
-func (r *RTKRepository) CreateRefreshToken(userID int, token string, expiresAt time.Time) (int, error) {
+func (r *Repository) CreateRefreshToken(userID int, token string, expiresAt time.Time) (int, error) {
 	query := "INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3) RETURNING id"
 	var id int
 	err := r.db.QueryRow(query, userID, token, expiresAt).Scan(&id)
@@ -25,7 +22,7 @@ func (r *RTKRepository) CreateRefreshToken(userID int, token string, expiresAt t
 	return id, nil
 }
 
-func (r *RTKRepository) GetRefreshTokenByToken(token string) (*models.RTK, error) {
+func (r *Repository) GetRefreshTokenByToken(token string) (*models.RTK, error) {
 	query := "Select id, user_id, token, expires_at, created_at, revoked From refresh_tokens WHERE token = $1"
 	var rtk models.RTK
 	err := r.db.QueryRow(query, token).Scan(&rtk.ID, &rtk.UserID, &rtk.Token, &rtk.ExpiresAt, &rtk.CreatedAt, &rtk.Revoked)
@@ -39,7 +36,7 @@ func (r *RTKRepository) GetRefreshTokenByToken(token string) (*models.RTK, error
 
 }
 
-func (r *RTKRepository) RevokeRefreshToken(token string) error {
+func (r *Repository) RevokeRefreshToken(token string) error {
 	query := "UPDATE refresh_tokens SET revoked = TRUE WHERE token = $1"
 	result, err := r.db.Exec(query, token)
 	if err != nil {
@@ -55,7 +52,7 @@ func (r *RTKRepository) RevokeRefreshToken(token string) error {
 	return nil
 }
 
-func (r *RTKRepository) GetRefreshTokenByUserID(userID int) (*models.RTK, error) {
+func (r *Repository) GetRefreshTokenByUserID(userID int) (*models.RTK, error) {
 	query := "SELECT id, user_id, token, expires_at, created_at, revoked FROM refresh_tokens WHERE user_id = $1"
 	var rtk models.RTK
 	err := r.db.QueryRow(query, userID).Scan(&rtk.ID, &rtk.UserID, &rtk.Token, &rtk.ExpiresAt, &rtk.CreatedAt, &rtk.Revoked) 
@@ -69,7 +66,7 @@ func (r *RTKRepository) GetRefreshTokenByUserID(userID int) (*models.RTK, error)
 }
 
 // RevokeAllRefreshTokensForUser revokes all active refresh tokens for a user
-func (r *RTKRepository) RevokeAllRefreshTokensForUser(userID int) error {
+func (r *Repository) RevokeAllRefreshTokensForUser(userID int) error {
 	query := "UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1 AND revoked = FALSE"
 	_, err := r.db.Exec(query, userID)
 	if err != nil {

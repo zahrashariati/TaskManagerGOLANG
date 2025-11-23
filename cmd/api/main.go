@@ -10,13 +10,13 @@ import (
 	"log"                        //logging
 	"github.com/gofiber/fiber/v2" //Fiber web framework
 	"github.com/redis/go-redis/v9" //redis client
-	"task_manager/internal/config" //configuration
-	"task_manager/internal/repo"   //db operations
-	"task_manager/internal/services" //logic layer
-	"task_manager/internal/handlers" //handler layer
-	"task_manager/internal/cache"    //cache operations
-	"task_manager/internal/auth"    //JWT service
-	"task_manager/internal/producer" //Kafka producer
+	"github.com/zahrashariati/task-manager/internal/config" //configuration
+	"github.com/zahrashariati/task-manager/internal/repo"   //db operations
+	"github.com/zahrashariati/task-manager/internal/services" //logic layer
+	"github.com/zahrashariati/task-manager/internal/handlers" //handler layer
+	"github.com/zahrashariati/task-manager/internal/cache"    //cache operations
+	"github.com/zahrashariati/task-manager/internal/auth"    //JWT service
+	"github.com/zahrashariati/task-manager/internal/producer" //Kafka producer
 )
 
 func main() {

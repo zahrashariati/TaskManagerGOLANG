@@ -1,36 +1,24 @@
+// In-memory storage 
 package storage
 
 import (
 	"sync"
 	"time"
-	"task_manager/internal/models"
+	"github.com/zahrashariati/task-manager/internal/models"
+	"github.com/zahrashariati/task-manager/internal/scheduler"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
-
-// ScheduledTask stores an event with its Kafka message (for committing offset later)
-type ScheduledTask struct {
-	Event         models.TaskScheduledEvent
-	Message       *kafka.Message  // For in-memory storage
-	KafkaMetadata *KafkaMetadata   // For DB storage
-}
-
-// KafkaMetadata stores Kafka message metadata for committing offsets
-type KafkaMetadata struct {
-	Topic     string
-	Partition int32
-	Offset    int64
-}
 
 // Storage holds scheduled tasks in memory (thread-safe)
 type Storage struct {
 	mu     sync.RWMutex
-	tasks  map[string]*ScheduledTask // Key: event_id
+	tasks  map[string]*scheduler.ScheduledTask // Key: event_id
 }
 
 // NewStorage creates a new storage instance
 func NewStorage() *Storage {
 	return &Storage{
-		tasks: make(map[string]*ScheduledTask),
+		tasks: make(map[string]*scheduler.ScheduledTask),
 	}
 }
 
@@ -39,23 +27,24 @@ func (s *Storage) Add(event models.TaskScheduledEvent, msg *kafka.Message) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	
-	s.tasks[event.EventID] = &ScheduledTask{
-		Event:   event,
-		Message: msg,
+	s.tasks[event.EventID] = &scheduler.ScheduledTask{
+		Event:     event,
+		Message:   msg,
+		Processed: false,
 	}
 }
 
-// GetAllDueTasks returns all tasks that are due (date and time)
-func (s *Storage) GetAllDueTasks() []*ScheduledTask {
+// GetAllDueTasks returns all tasks that are due (date and time) and not yet processed
+func (s *Storage) GetAllDueTasks() []*scheduler.ScheduledTask {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	
-	var dueTasks []*ScheduledTask
+	var dueTasks []*scheduler.ScheduledTask
 	now := time.Now()
 	
 	for _, task := range s.tasks {
-		// Task is due if due_date <= now (checks both date AND time)
-		if task.Event.DueDate.Before(now) || task.Event.DueDate.Equal(now) {
+		// Task is due if due_date <= now (checks both date AND time) and not processed
+		if !task.Processed && (task.Event.DueDate.Before(now) || task.Event.DueDate.Equal(now)) {
 			dueTasks = append(dueTasks, task)
 		}
 	}
@@ -63,19 +52,22 @@ func (s *Storage) GetAllDueTasks() []*ScheduledTask {
 	return dueTasks
 }
 
-// Remove removes a task from storage (after processing)
+// Remove marks a task as processed (soft delete)
 func (s *Storage) Remove(eventID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.tasks, eventID)
+	
+	if task, exists := s.tasks[eventID]; exists {
+		task.Processed = true
+	}
 }
 
 // GetAll returns all tasks (for debugging)
-func (s *Storage) GetAll() []*ScheduledTask {
+func (s *Storage) GetAll() []*scheduler.ScheduledTask {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	
-	tasks := make([]*ScheduledTask, 0, len(s.tasks))
+	tasks := make([]*scheduler.ScheduledTask, 0, len(s.tasks))
 	for _, task := range s.tasks {
 		tasks = append(tasks, task)
 	}
