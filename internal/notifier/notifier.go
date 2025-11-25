@@ -1,11 +1,12 @@
 package notifier
 
 import (
-	"github.com/zahrashariati/task-manager/internal/models"
-	"github.com/zahrashariati/task-manager/internal/scheduler"
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/zahrashariati/task-manager/internal/models"
+	"github.com/zahrashariati/task-manager/internal/scheduler"
 )
 
 type Notifier struct {}
@@ -22,7 +23,7 @@ func (n *Notifier) ProcessEvent(event models.TaskScheduledEvent) error {
 	if event.DueDate.Before(now) || event.DueDate.Equal(now) {
 		return n.sendNotification(event)
 	} else {
-		fmt.Printf("Task %d is not due yet (due: %s, now: %s)\n", 
+		fmt.Printf("task %d is not due yet (due: %s, now: %s)\n", 
 			event.TaskID, 
 			event.DueDate.Format(time.RFC3339), 
 			now.Format(time.RFC3339))
@@ -38,23 +39,23 @@ func (n *Notifier) sendNotification(event models.TaskScheduledEvent) error {
 
 // Callback processes all due tasks from storage, sends notifications, and removes successfully processed tasks
 func (n *Notifier) Callback(storage scheduler.StorageInterface) {
-	log.Println("Running scheduled check...")
+	log.Println("running scheduled check...")
 	
 	// Get all due tasks
 	dueTasks := storage.GetAllDueTasks()
 	
 	if len(dueTasks) == 0 {
-		log.Println("No tasks due at this time")
+		log.Println("no tasks due at this time")
 		return
 	}
 	
-	log.Printf("Found %d due task(s)", len(dueTasks))
+	log.Printf("found %d due task(s)", len(dueTasks))
 	
 	// Process each due task
 	for _, task := range dueTasks {
 		// Send notification
 		if err := n.ProcessEvent(task.Event); err != nil {
-			log.Printf("Error sending notification for task %d: %v", task.Event.TaskID, err)
+			log.Printf("error sending notification for task %d: %v", task.Event.TaskID, err)
 			// Don't remove from storage if notification failed (will retry next check)
 			continue
 		}
@@ -62,6 +63,6 @@ func (n *Notifier) Callback(storage scheduler.StorageInterface) {
 		// Remove from storage (successfully processed)
 		// Note: Kafka offset was already committed when consumer stored the message
 		storage.Remove(task.Event.EventID)
-		log.Printf("Task %d processed and removed from storage", task.Event.TaskID)
+		log.Printf("task %d processed and removed from storage", task.Event.TaskID)
 	}
 }

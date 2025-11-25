@@ -2,7 +2,10 @@ package handlers
 
 import (
 	"time"
+
 	"github.com/gofiber/fiber/v2"
+
+	"github.com/zahrashariati/task-manager/internal/auth"
 	"github.com/zahrashariati/task-manager/internal/models"
 )
 
@@ -43,7 +46,7 @@ type ClaimsInterface interface {
 type JWTServiceInterface interface {
 	GenerateToken(userId int, username string, expiresAt time.Time) (string, error)
 	GetTokenFromHeader(c *fiber.Ctx) (string, error)
-	ValidateToken(tokenString string) (interface{}, error) // Returns ClaimsInterface (implemented by *auth.Claims)
+	ValidateToken(tokenString string) (*auth.Claims, error)
 }
 
 

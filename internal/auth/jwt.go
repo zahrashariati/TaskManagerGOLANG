@@ -6,13 +6,15 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
-	"time"
-	"github.com/golang-jwt/jwt/v5"
 	"errors"
+	"fmt"
 	"strings"
-	"github.com/google/uuid"
+	"time"
+
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+
 	apperrors "github.com/zahrashariati/task-manager/internal/errors"
 )
 
@@ -120,7 +122,7 @@ func (s *JWTService) GenerateToken(userId int, username string, expiresAt time.T
 	return tokenString, nil
 }
 
-func (s *JWTService) ValidateToken(tokenString string) (interface{}, error) {
+func (s *JWTService) ValidateToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok { //RSA signing method
 			return nil, fmt.Errorf("invalid signing method: %v", token.Header["alg"])

@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"github.com/zahrashariati/task-manager/internal/models"
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/google/uuid"
+
+	"github.com/zahrashariati/task-manager/internal/models"
 )
 
 // ProducerInterface defines the interface for publishing events to Kafka
@@ -79,7 +80,7 @@ func (p *Producer) PublishTaskScheduledEvent(task *models.Task) error {
 	}, deliveryChan)
 
 	if err != nil {
-		log.Printf("⚠️ Failed to publish event to Kafka: %v", err)
+		log.Printf("failed to publish event to Kafka: %v", err)
 		return err
 	}
 
@@ -88,9 +89,9 @@ func (p *Producer) PublishTaskScheduledEvent(task *models.Task) error {
 		e := <-deliveryChan
 		m := e.(*kafka.Message)
 		if m.TopicPartition.Error != nil {
-			log.Printf("⚠️ Failed to deliver message to Kafka: %v", m.TopicPartition.Error)
+			log.Printf("failed to deliver message to Kafka: %v", m.TopicPartition.Error)
 		} else {
-			log.Printf("✅ Published event to Kafka: task_id=%d, event_id=%s, due_date=%s",
+			log.Printf("published event to Kafka: task_id=%d, event_id=%s, due_date=%s",
 				task.ID, event.EventID, event.DueDate.Format("2006-01-02"))
 		}
 	}()

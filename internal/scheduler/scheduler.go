@@ -9,8 +9,10 @@ import (
 	"context"
 	"log"
 	"time"
-	"github.com/zahrashariati/task-manager/internal/models"
+
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+
+	"github.com/zahrashariati/task-manager/internal/models"
 )
 
 // ScheduledTask stores an event with its Kafka message (for committing offset later)
@@ -65,7 +67,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 	ticker := time.NewTicker(s.checkInterval)
 	defer ticker.Stop()
 	
-	log.Printf("Scheduler started. Checking every %v", s.checkInterval)
+	log.Printf("scheduler started. Checking every %v", s.checkInterval)
 	
 	// Run initial check immediately
 	s.callback(s.storage)
@@ -73,7 +75,7 @@ func (s *Scheduler) Start(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("Scheduler stopped")
+			log.Println("scheduler stopped")
 			return
 		case <-ticker.C:
 			s.callback(s.storage)

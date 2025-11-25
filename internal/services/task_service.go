@@ -2,10 +2,11 @@
 package services
 
 import (
-	"errors" //standard library errors (for errors.Is)
-	"github.com/zahrashariati/task-manager/internal/models" //task structs
-	"github.com/zahrashariati/task-manager/internal/producer" //Kafka producer interface
-	"log" //for logging
+	"errors"
+	"log"
+
+	"github.com/zahrashariati/task-manager/internal/models"
+	"github.com/zahrashariati/task-manager/internal/producer"
 )
 
 type TaskService struct { //share same instances of repo and cache across different methods
@@ -28,12 +29,12 @@ func NewTaskService(repo TaskRepositoryInterface, cache CacheInterface, producer
 func (s *TaskService) GetAllTasks(userID int, showCompleted bool) ([]*models.Task, error) {
 	//try cache first
 	if tasks, err := s.cache.GetTasks(showCompleted); err == nil {
-		log.Printf("Cache hit %d tasks for GetAllTasks\n", len(tasks))
+		log.Printf("cache hit %d tasks for GetAllTasks\n", len(tasks))
 		return tasks, nil //cache hit - return cached data
 	}
 
 	//cache miss - get from database
-	log.Println("Cache miss for GetAllTasks")
+	log.Println("cache miss for GetAllTasks")
 	tasks, err := s.repo.GetAll(userID, showCompleted)
 	if err != nil {
 		return nil, err //return error if database operation fails
@@ -46,14 +47,14 @@ func (s *TaskService) GetAllTasks(userID int, showCompleted bool) ([]*models.Tas
 	// Store in cache for next time
 	log.Printf("retrieved %d tasks from db, Storing %d tasks in cache for GetAllTasks\n", len(tasks), len(tasks))
 	if err := s.cache.SetTasks(showCompleted, taskPointers); err != nil {
-		log.Printf("⚠️ WARNING: Failed to store tasks in cache: %v\n", err)
+		log.Printf("warning: failed to store tasks in cache: %v\n", err)
 		// Continue anyway - cache is optional
 	} else {
 		keyName := "all"
 		if !showCompleted {
 			keyName = "incomplete"
 		}
-		log.Printf("✅ Successfully stored %d tasks in cache (key: tasks:%s)\n", len(tasks), keyName)
+		log.Printf("successfully stored %d tasks in cache (key: tasks:%s)\n", len(tasks), keyName)
 	}
 	return taskPointers, nil //return tasks
 }
@@ -82,7 +83,7 @@ func (s *TaskService) CreateTask(userID int, task *models.Task) error {
 	if s.producer != nil && task.DueDate != nil {
 		if err := s.producer.PublishTaskScheduledEvent(task); err != nil {
 			// Log error but don't fail the request (fire-and-forget)
-			log.Printf("⚠️ Failed to publish task scheduled event: %v", err)
+			log.Printf("failed to publish task scheduled event: %v", err)
 		}
 	}
 
@@ -100,14 +101,14 @@ func (s *TaskService) GetTaskByID(id int, userID int) (*models.Task, error) {
 	if task, err := s.cache.GetTask(id); err == nil {
 		// Verify cached task belongs to user
 		if task.UserID == userID {
-			log.Printf("Cache hit for GetTaskByID %d\n", id)
+			log.Printf("cache hit for GetTaskByID %d\n", id)
 			return task, nil
 		}
 		// Cache has wrong user's task, fetch from DB
 	}
 	
 	// Cache miss - get from database
-	log.Printf("Cache miss for GetTaskByID %d\n", id)
+	log.Printf("cache miss for GetTaskByID %d\n", id)
 	task, err := s.repo.GetTaskByID(id)
 	if err != nil {
 		if errors.Is(err, ErrTaskNotFound) {
@@ -155,7 +156,7 @@ func (s *TaskService) UpdateTask(id int, userID int, task *models.Task) (*models
 	if s.producer != nil && updatedTask.DueDate != nil {
 		if err := s.producer.PublishTaskScheduledEvent(updatedTask); err != nil {
 			// Log error but don't fail the request (fire-and-forget)
-			log.Printf("⚠️ Failed to publish task scheduled event: %v", err)
+			log.Printf("failed to publish task scheduled event: %v", err)
 		}
 	}
 

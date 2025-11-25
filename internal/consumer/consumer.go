@@ -15,6 +15,7 @@ import (
 	"log"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+
 	"github.com/zahrashariati/task-manager/internal/models"
 	"github.com/zahrashariati/task-manager/internal/scheduler"
 )
@@ -32,12 +33,12 @@ func NewConsumer(brokerURL string) *Consumer {
 		"enable.auto.commit": "false",      // Manual offset commit for reliability
 	})
 	if err != nil {
-		log.Fatalf("Failed to create consumer: %v", err)
+		log.Fatalf("failed to create consumer: %v", err)
 	}
 	
 	// Subscribe to topic
 	if err := c.SubscribeTopics([]string{"task_scheduled"}, nil); err != nil {
-		log.Fatalf("Failed to subscribe to topic: %v", err)
+		log.Fatalf("failed to subscribe to topic: %v", err)
 	}
 	
 	return &Consumer{
@@ -52,12 +53,12 @@ func NewConsumer(brokerURL string) *Consumer {
 // For true cancellation support, we'd need to use ReadMessage with a timeout and check
 // context between reads, but this works for most cases since Kafka usually has messages.
 func (c *Consumer) Start(ctx context.Context, taskStorage scheduler.StorageInterface) error {
-	log.Println("Consumer started. Reading messages and storing for scheduler...")
+	log.Println("consumer started. Reading messages and storing for scheduler...")
 	
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("Context cancelled, stopping consumer")
+			log.Println("context cancelled, stopping consumer")
 			return ctx.Err()
 		default:
 			// Read message (blocking - waits until message arrives)
@@ -68,13 +69,13 @@ func (c *Consumer) Start(ctx context.Context, taskStorage scheduler.StorageInter
 			// }
 			msg, err := c.consumer.ReadMessage(-1) // -1 means no timeout (blocking)
 			if err != nil {
-				log.Printf("Error reading message: %v", err)
+				log.Printf("error reading message: %v", err)
 				continue
 			}
 			
 			var event models.TaskScheduledEvent
 			if err := json.Unmarshal(msg.Value, &event); err != nil {
-				log.Printf("Error unmarshalling message: %v", err)
+				log.Printf("error unmarshalling message: %v", err)
 				// Skip bad messages but commit offset to avoid reprocessing
 				c.CommitMessage(msg)
 				continue
@@ -82,12 +83,12 @@ func (c *Consumer) Start(ctx context.Context, taskStorage scheduler.StorageInter
 			
 			// Store event (scheduler will process it later)
 			taskStorage.Add(event, msg)
-			log.Printf("Stored event for task %d (due: %s)", event.TaskID, event.DueDate.Format("2006-01-02"))
+			log.Printf("stored event for task %d (due: %s)", event.TaskID, event.DueDate.Format("2006-01-02"))
 			
 			// Commit offset immediately after storing (prevents max poll interval error)
 			// This tells Kafka we've processed the message, even though we haven't sent notification yet
 			if err := c.CommitMessage(msg); err != nil {
-				log.Printf("Warning: Failed to commit offset for task %d: %v", event.TaskID, err)
+				log.Printf("warning: failed to commit offset for task %d: %v", event.TaskID, err)
 				// Continue anyway - scheduler will handle retry
 			}
 		}

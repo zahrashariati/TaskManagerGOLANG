@@ -2,21 +2,23 @@
 package main
 
 import (
-	"context" //for Redis Ping
+	"context"
 	"fmt"
+	"log"
 	"os"
-	"strings" //for string manipulation
-	"github.com/joho/godotenv" //load environment variables from .env file
-	"log"                        //logging
-	"github.com/gofiber/fiber/v2" //Fiber web framework
-	"github.com/redis/go-redis/v9" //redis client
-	"github.com/zahrashariati/task-manager/internal/config" //configuration
-	"github.com/zahrashariati/task-manager/internal/repo"   //db operations
-	"github.com/zahrashariati/task-manager/internal/services" //logic layer
-	"github.com/zahrashariati/task-manager/internal/handlers" //handler layer
-	"github.com/zahrashariati/task-manager/internal/cache"    //cache operations
-	"github.com/zahrashariati/task-manager/internal/auth"    //JWT service
-	"github.com/zahrashariati/task-manager/internal/producer" //Kafka producer
+	"strings"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
+
+	"github.com/zahrashariati/task-manager/internal/auth"
+	"github.com/zahrashariati/task-manager/internal/cache"
+	"github.com/zahrashariati/task-manager/internal/config"
+	"github.com/zahrashariati/task-manager/internal/handlers"
+	"github.com/zahrashariati/task-manager/internal/producer"
+	"github.com/zahrashariati/task-manager/internal/repo"
+	"github.com/zahrashariati/task-manager/internal/services"
 )
 
 func main() {
@@ -24,7 +26,7 @@ func main() {
 	
 	// Load environment variables 
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
+		log.Println("no .env file found, using environment variables")
 	}
 
 	// Load configuration
@@ -41,7 +43,7 @@ func main() {
 	// Connect to database
 	db, err := repo.InitDB(cfg.DatabaseURL)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal("failed to connect to database:", err)
 	}
 	defer db.Close()
 
@@ -59,7 +61,7 @@ func main() {
 	// Test Redis connection
 	ctx := context.Background()
 	if err := redisClient.Ping(ctx).Err(); err != nil {
-		log.Fatal("Failed to connect to Redis:", err)
+		log.Fatal("failed to connect to Redis:", err)
 	}
 
 	if cfg.JWTPrivateKeyPath == "" || cfg.JWTPublicKeyPath == "" {
@@ -68,16 +70,16 @@ func main() {
 	// Read private key file
 	privateKeyBytes, err := os.ReadFile(cfg.JWTPrivateKeyPath)
 	if err != nil {
-		log.Fatal("Failed to read private key file:", err)
+		log.Fatal("failed to read private key file:", err)
 	}
 	// Read public key file
 	publicKeyBytes, err := os.ReadFile(cfg.JWTPublicKeyPath)
 	if err != nil {
-		log.Fatal("Failed to read public key file:", err)
+		log.Fatal("failed to read public key file:", err)
 	}
 	jwtService, err := auth.NewJWTService(privateKeyBytes, publicKeyBytes)
 	if err != nil {
-		log.Fatal("Failed to initialize JWT service:", err)
+		log.Fatal("failed to initialize JWT service:", err)
 	}
 
 	// Initialize Kafka producer (optional - fails gracefully if Kafka unavailable)
@@ -85,15 +87,15 @@ func main() {
 	if cfg.KafkaBrokerURL != "" {
 		producer, err := producer.NewProducer(cfg.KafkaBrokerURL, "task_scheduled")
 		if err != nil {
-			log.Printf("⚠️ Warning: Failed to initialize Kafka producer: %v. Continuing without Kafka.", err)
+			log.Printf("warning: failed to initialize Kafka producer: %v. Continuing without Kafka.", err)
 			kafkaProducer = nil
 		} else {
 			defer producer.Close()
 			kafkaProducer = producer
-			log.Printf("✅ Kafka producer initialized: %s", cfg.KafkaBrokerURL)
+			log.Printf("kafka producer initialized: %s", cfg.KafkaBrokerURL)
 		}
 	} else {
-		log.Println("ℹ️ KAFKA_BROKER_URL not set, running without Kafka")
+		log.Println("KAFKA_BROKER_URL not set, running without Kafka")
 	}
 
 	// Initialize layers (each layer depends on the previous layer)
@@ -137,7 +139,7 @@ func main() {
 	// Start server
 	addr := ":" + cfg.Port
 	//creates address string for server to listen on
-	log.Printf("Server starting on %s", addr)
+	log.Printf("server starting on %s", addr)
 	//starts the web server on that address
 	//if server fails to start, log the error and exit
 	log.Fatal(app.Listen(addr))

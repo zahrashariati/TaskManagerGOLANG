@@ -65,7 +65,7 @@ func InitDB(connString string) (*sql.DB, error) { //Returns pointer to sql.DB an
 	// Add due_date column if it doesn't exist (for existing databases)
 	if _, err := db.Exec("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS due_date TIMESTAMP"); err != nil {
 		// Ignore error if column already exists
-		log.Printf("Note: due_date column may already exist: %v", err)
+		log.Printf("note: due_date column may already exist: %v", err)
 	}
 
 

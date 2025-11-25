@@ -15,49 +15,38 @@ package auth
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/zahrashariati/task-manager/internal/handlers"
 )
 
-func JWTMiddleware(jwtService handlers.JWTServiceInterface) fiber.Handler {
+func JWTMiddleware(jwtService *JWTService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		tokenString, err := jwtService.GetTokenFromHeader(c)
 
 		// Missing header
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid authorization header",
+				"error": "invalid authorization header",
 			})
 		}
 
 		// Invalid format
 		if tokenString == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid authorization header",
+				"error": "invalid authorization header",
 			})
 		}
 
-		claimsInterface, err := jwtService.ValidateToken(tokenString)
+		claims, err := jwtService.ValidateToken(tokenString)
 
 		// Invalid token
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid token",
-			})
-		}
-
-		// Type assert to ClaimsInterface
-		claims, ok := claimsInterface.(handlers.ClaimsInterface)
-		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid token claims",
+				"error": "invalid token",
 			})
 		}
 
 		// Valid token
-		c.Locals("userID", claims.GetUserID())
-		c.Locals("username", claims.GetUsername())
+		c.Locals("userID", claims.UserID)
+		c.Locals("username", claims.Username)
 		return c.Next()
 	}
 }
-
-
