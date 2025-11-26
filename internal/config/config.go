@@ -9,7 +9,7 @@ type Config struct {
 	Port             string
 	JWTPrivateKeyPath string
 	JWTPublicKeyPath  string
-	// KAFKA_BROKER_URL string
+	KafkaBrokerURL   string
 }
 
 func Load() *Config { //Return pointer to Config struct - allows modification if needed
@@ -19,7 +19,7 @@ func Load() *Config { //Return pointer to Config struct - allows modification if
 		Port:             getEnv("PORT", "8080"),
 		JWTPrivateKeyPath: getEnv("JWT_PRIVATE_KEY_PATH", "keys/private.pem"),
 		JWTPublicKeyPath:  getEnv("JWT_PUBLIC_KEY_PATH", "keys/public.pem"),
-		// KAFKA_BROKER_URL: getEnv("KAFKA_BROKER_URL", "localhost:9092"),
+		KafkaBrokerURL:   getEnv("KAFKA_BROKER_URL", "localhost:9092"),
 	}
 }
 //You can't "return the Config" directly — you create a Config and return its address with &.

@@ -2,20 +2,20 @@ package repo
 
 import (
 	"database/sql"
-	"task_manager/internal/models"
-	apperrors "task_manager/internal/errors"
+	"github.com/zahrashariati/task-manager/internal/models"
+	apperrors "github.com/zahrashariati/task-manager/internal/errors"
 )
 
-type UserRepository struct {
+type Repository struct {
 	db *sql.DB //holds db connection- pointer to sql.DB struct
 	secretKey string //holds secret key for JWT
 }
-//constructor function - returns pointer to UserRepository struct		
-func NewUserRepository(db *sql.DB, secretKey string) *UserRepository {
-	return &UserRepository{db: db, secretKey: secretKey}
+//constructor function - returns pointer to Repository struct		
+func NewUserRepository(db *sql.DB, secretKey string) *Repository {
+	return &Repository{db: db, secretKey: secretKey}
 }
 
-func (r *UserRepository) CreateUser(user *models.User) (int, error) {
+func (r *Repository) CreateUser(user *models.User) (int, error) {
 	query := "INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id"
 	var id int
 	err := r.db.QueryRow(query, user.Username, user.Email, user.Password).Scan(&id)
@@ -25,7 +25,7 @@ func (r *UserRepository) CreateUser(user *models.User) (int, error) {
 	return id, nil
 }		
 
-func (r *UserRepository) GetByUsername(username string) (*models.User, error) {
+func (r *Repository) GetByUsername(username string) (*models.User, error) {
 	query := "SELECT id, username, email, password FROM users WHERE username = $1"
 	var user models.User
 	err := r.db.QueryRow(query, username).Scan(&user.ID, &user.Username, &user.Email, &user.Password)
@@ -38,7 +38,7 @@ func (r *UserRepository) GetByUsername(username string) (*models.User, error) {
 	return &user, nil
 }
 
-func (r *UserRepository) GetByID(id int) (*models.User, error) {
+func (r *Repository) GetUserByID(id int) (*models.User, error) {
 	query := "SELECT id, username, email FROM users WHERE id = $1"
 	var user models.User
 	err := r.db.QueryRow(query, id).Scan(&user.ID, &user.Username, &user.Email)
@@ -51,7 +51,7 @@ func (r *UserRepository) GetByID(id int) (*models.User, error) {
 	return &user, nil
 }
 
-func (r *UserRepository) UpdateUser(id int, user *models.User) error {
+func (r *Repository) UpdateUser(id int, user *models.User) error {
 	query := "UPDATE users SET username = $1, email = $2, password = $3 WHERE id = $4"
 	result, err := r.db.Exec(query, user.Username, user.Email, user.Password, id)
 	if err != nil {
@@ -67,7 +67,7 @@ func (r *UserRepository) UpdateUser(id int, user *models.User) error {
 	return nil
 }
 
-func (r *UserRepository) DeleteUser(id int) error {
+func (r *Repository) DeleteUser(id int) error {
 	query := "DELETE FROM users WHERE id = $1"
 	result, err := r.db.Exec(query, id)
 	if err != nil {

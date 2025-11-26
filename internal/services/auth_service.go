@@ -9,21 +9,20 @@ package services
 import (
 	"database/sql"
 	"errors"
-	apperrors "task_manager/internal/errors"
-	"task_manager/internal/models"
-	"task_manager/internal/repo"
-	"task_manager/internal/utils"
+	apperrors "github.com/zahrashariati/task-manager/internal/errors"
+	"github.com/zahrashariati/task-manager/internal/models"
+	"github.com/zahrashariati/task-manager/internal/utils"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService struct {
-	userRepo repo.UserRepositoryInterface
-	rtkRepo  repo.RTKRepositoryInterface
+	userRepo UserRepositoryInterface
+	rtkRepo  RTKRepositoryInterface
 }
 
-func NewAuthService(userRepo repo.UserRepositoryInterface, rtkRepo repo.RTKRepositoryInterface) *AuthService {
+func NewAuthService(userRepo UserRepositoryInterface, rtkRepo RTKRepositoryInterface) *AuthService {
 	return &AuthService{userRepo: userRepo, rtkRepo: rtkRepo}
 }
 
@@ -59,7 +58,7 @@ func (s *AuthService) Login(user *models.User) (*models.User, error) {
 }
 
 func (s *AuthService) GetUserByID(id int) (*models.User, error) {
-	user, err := s.userRepo.GetByID(id)
+	user, err := s.userRepo.GetUserByID(id)
 	if err == sql.ErrNoRows {
 		return nil, apperrors.Wrap(errors.New("user not found"), "user not found")
 	}

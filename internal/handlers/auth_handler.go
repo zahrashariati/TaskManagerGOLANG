@@ -1,19 +1,19 @@
 package handlers
 
 import (
-	"github.com/gofiber/fiber/v2"
-	"task_manager/internal/models"
-	"task_manager/internal/services"
-	"task_manager/internal/auth"
 	"time"
+
+	"github.com/gofiber/fiber/v2"
+
+	"github.com/zahrashariati/task-manager/internal/models"
 )
 
 type AuthHandler struct {
-	authService services.AuthServiceInterface
-	jwtService  *auth.JWTService
+	authService AuthServiceInterface
+	jwtService  JWTServiceInterface
 }
 
-func NewAuthHandler(authService services.AuthServiceInterface, jwtService *auth.JWTService) *AuthHandler {
+func NewAuthHandler(authService AuthServiceInterface, jwtService JWTServiceInterface) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
 		jwtService:  jwtService,
@@ -24,7 +24,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	var request models.RegisterRequest
 	if err := c.BodyParser(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request body",
+			"error": "invalid request body",
 		})
 	}
 	user := &models.User{
@@ -35,7 +35,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	id, err := h.authService.Register(user)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to register user",
+			"error": "failed to register user",
 		})
 	}
 	
@@ -55,7 +55,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	var request models.LoginRequest
 	if err := c.BodyParser(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request body",
+			"error": "invalid request body",
 		})
 	}
 	user := &models.User{
@@ -65,7 +65,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	user, err := h.authService.Login(user)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Invalid credentials",
+			"error": "invalid credentials",
 		})
 	}
 	
@@ -73,21 +73,21 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	ATKToken, err := h.jwtService.GenerateToken(user.ID, user.Username, time.Now().Add(5*time.Minute))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to generate token",
+			"error": "failed to generate token",
 		})
 	}
 
 	rtkToken, err := h.authService.CreateRefreshToken(user.ID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to create refresh token",
+			"error": "failed to create refresh token",
 		})
 	}
 	
 	// Ensure refresh token is not empty
 	if rtkToken == "" {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Refresh token generation failed",
+			"error": "refresh token generation failed",
 		})
 	}
 	
@@ -102,13 +102,13 @@ func (h *AuthHandler) GetUser(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(int)
 	if !ok || userID == 0 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "User not logged in",
+			"error": "user not logged in",
 		})
 	}
 	user, err := h.authService.GetUserByID(userID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to get user",
+			"error": "failed to get user",
 		})
 	}
 	return c.JSON(user)
@@ -118,13 +118,13 @@ func (h *AuthHandler) UpdateUser(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(int)
 	if !ok || userID == 0 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "User not logged in",
+			"error": "user not logged in",
 		})
 	}
 	var request models.User
 	if err := c.BodyParser(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request body",
+			"error": "invalid request body",
 		})
 	}
 	user := &models.User{
@@ -135,11 +135,11 @@ func (h *AuthHandler) UpdateUser(c *fiber.Ctx) error {
 	err := h.authService.UpdateUser(userID, user)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to update user",
+			"error": "failed to update user",
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "User updated successfully",
+		"message": "user updated successfully",
 	})
 }
 
@@ -147,17 +147,17 @@ func (h *AuthHandler) DeleteUser(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(int)
 	if !ok || userID == 0 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "User not logged in",
+			"error": "user not logged in",
 		})
 	}
 	err := h.authService.DeleteUser(userID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to delete user",
+			"error": "failed to delete user",
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "User deleted successfully",
+		"message": "user deleted successfully",
 	})
 }
 
@@ -165,7 +165,7 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(int)
 	if !ok || userID == 0 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "User not logged in",
+			"error": "user not logged in",
 		})
 	}
 
@@ -178,17 +178,17 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 	}
 	if err := c.BodyParser(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request body",
+			"error": "invalid request body",
 		})
 	}
 	err := h.authService.RevokeRefreshToken(userID, request.RefreshToken)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to revoke refresh token",
+			"error": "failed to revoke refresh token",
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "Logged out successfully",
+		"message": "logged out successfully",
 	})
 }
 
@@ -198,7 +198,7 @@ func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 	}
 	if err := c.BodyParser(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request body",
+			"error": "invalid request body",
 		})
 	}
 	
@@ -206,7 +206,7 @@ func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 	userID, newRefreshToken, err := h.authService.RotateRefreshToken(request.RefreshToken)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Invalid refresh token",
+			"error": "invalid refresh token",
 		})
 	}
 
@@ -214,7 +214,7 @@ func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 	user, err := h.authService.GetUserByID(userID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to get user",
+			"error": "failed to get user",
 		})
 	}
 	
@@ -222,7 +222,7 @@ func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 	ATKToken, err := h.jwtService.GenerateToken(user.ID, user.Username, time.Now().Add(5*time.Minute))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to generate token",
+			"error": "failed to generate token",
 		})
 	}
 	

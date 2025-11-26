@@ -4,21 +4,18 @@ package repo
 import (
 	"database/sql"
 	"errors"
-	"task_manager/internal/models"
+	"time"
+	"github.com/zahrashariati/task-manager/internal/models"
 )
 
-type TaskRepository struct {
-	db *sql.DB //holds db connection- pointer to sql.DB struct
+// NewTaskRepository creates a new task repository
+func NewTaskRepository(db *sql.DB) *Repository {
+	return &Repository{db: db}
 }
 
-func NewTaskRepository(db *sql.DB) *TaskRepository { //pointer to TaskRepository struct
-	return &TaskRepository{db: db}//pointer so methods can access and modify the db connection
-}
-
-
-// r means method of TaskRepository struct - r is like self 
+// r means method of Repository struct - r is like self 
 // output int(new task id) and error
-func (r *TaskRepository) Create(task *models.Task) (int, error) {
+func (r *Repository) Create(task *models.Task) (int, error) {
 	// 	// Step 1: Insert task
 	// query := "INSERT INTO tasks (user_id, title, description, priority) VALUES ($1, $2, $3, $4)"
 	// _, err := r.db.Exec(query, task.UserID, task.Title, task.Description, task.Priority)
@@ -34,25 +31,31 @@ func (r *TaskRepository) Create(task *models.Task) (int, error) {
 	// Local error definitions
 	var ErrDatabaseQueryFailed = errors.New("failed to query database")
 
-	query := "INSERT INTO tasks (user_id, title, description, priority) VALUES ($1, $2, $3, $4) RETURNING id"
+	query := "INSERT INTO tasks (user_id, title, description, priority, due_date) VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at"
 	var id int
-	err := r.db.QueryRow(query, task.UserID, task.Title, task.Description, task.Priority).Scan(&id)
+	var createdAt time.Time
+	err := r.db.QueryRow(query, task.UserID, task.Title, task.Description, task.Priority, task.DueDate).Scan(&id, &createdAt)
 	if err != nil {
 		return 0, ErrDatabaseQueryFailed
 	}
+	
+	// Update task with database-generated fields
+	task.ID = id
+	task.CreatedAt = createdAt
+	
 	return id, nil
 }
 
-func (r *TaskRepository) GetByID(id int) (*models.Task, error) {
+func (r *Repository) GetTaskByID(id int) (*models.Task, error) {
 	// Local error definitions
 	var (
 		ErrTaskNotFound       = errors.New("task not found")
 		ErrDatabaseQueryFailed = errors.New("failed to query database")
 	)
 
-	query := "SELECT id, user_id, title, description, completed, created_at, priority FROM tasks WHERE id = $1" //first parameter 
+	query := "SELECT id, user_id, title, description, completed, created_at, priority, due_date FROM tasks WHERE id = $1" //first parameter 
 	var task models.Task 
-	err := r.db.QueryRow(query, id).Scan(&task.ID, &task.UserID, &task.Title, &task.Description, &task.Completed, &task.CreatedAt, &task.Priority) //scan writes to variables and needs addresses to write
+	err := r.db.QueryRow(query, id).Scan(&task.ID, &task.UserID, &task.Title, &task.Description, &task.Completed, &task.CreatedAt, &task.Priority, &task.DueDate) //scan writes to variables and needs addresses to write
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrTaskNotFound
@@ -62,7 +65,7 @@ func (r *TaskRepository) GetByID(id int) (*models.Task, error) {
 	return &task, nil //returns address of task struct- more efficient than returning the struct itself
 }
 
-func (r *TaskRepository) Update(id int, userID int, task *models.Task) error {
+func (r *Repository) Update(id int, userID int, task *models.Task) error {
 	// Local error definitions
 	var (
 		ErrTaskNotFound      = errors.New("task not found")
@@ -70,7 +73,7 @@ func (r *TaskRepository) Update(id int, userID int, task *models.Task) error {
 	)
 
 	// First check if task exists and belongs to user
-	existingTask, err := r.GetByID(id)
+	existingTask, err := r.GetTaskByID(id)
 	if err != nil {
 		return ErrTaskNotFound
 	}
@@ -79,15 +82,15 @@ func (r *TaskRepository) Update(id int, userID int, task *models.Task) error {
 		return ErrTaskNotFound // Don't reveal task exists for other users
 	}
 	
-	query := "UPDATE tasks SET title = $1, description = $2, priority = $3 WHERE id = $4 AND user_id = $5"//safe way to pass values using placeholders
-	_, err = r.db.Exec(query, task.Title, task.Description, task.Priority, id, userID)
+	query := "UPDATE tasks SET title = $1, description = $2, priority = $3, due_date = $4 WHERE id = $5 AND user_id = $6"//safe way to pass values using placeholders
+	_, err = r.db.Exec(query, task.Title, task.Description, task.Priority, task.DueDate, id, userID)
 	if err != nil {
 		return ErrDatabaseExecFailed
 	}
 	return nil
 }
 
-func (r *TaskRepository) Delete(id int, userID int) error {
+func (r *Repository) Delete(id int, userID int) error {
 	// Local error definitions
 	var (
 		ErrTaskNotFound      = errors.New("task not found")
@@ -108,11 +111,11 @@ func (r *TaskRepository) Delete(id int, userID int) error {
 	}
 	return nil
 }
-func (r *TaskRepository) GetAll(userID int, showCompleted bool) ([]models.Task, error) {
+func (r *Repository) GetAll(userID int, showCompleted bool) ([]models.Task, error) {
 	// Local error definitions
 	var ErrDatabaseQueryFailed = errors.New("failed to query database")
 
-	query := "SELECT id, user_id, title, description, completed, created_at, priority FROM tasks WHERE user_id = $1"
+	query := "SELECT id, user_id, title, description, completed, created_at, priority, due_date FROM tasks WHERE user_id = $1"
 	rows, err := r.db.Query(query, userID)
 	if err != nil {
 		return nil, ErrDatabaseQueryFailed
@@ -131,7 +134,7 @@ func (r *TaskRepository) GetAll(userID int, showCompleted bool) ([]models.Task, 
 	// Loop through each row and scan into task struct
 	for rows.Next() {
 		var task models.Task  // NEW variable each iteration
-		err := rows.Scan(&task.ID, &task.UserID, &task.Title, &task.Description, &task.Completed, &task.CreatedAt, &task.Priority)
+		err := rows.Scan(&task.ID, &task.UserID, &task.Title, &task.Description, &task.Completed, &task.CreatedAt, &task.Priority, &task.DueDate)
 		if err != nil {
 			return nil, ErrDatabaseQueryFailed
 		}
@@ -146,7 +149,7 @@ func (r *TaskRepository) GetAll(userID int, showCompleted bool) ([]models.Task, 
 	return tasks, nil
 }
 
-func (r *TaskRepository) Complete(id int, userID int) error {
+func (r *Repository) Complete(id int, userID int) error {
 	// Local error definitions
 	var (
 		ErrTaskNotFound      = errors.New("task not found")
@@ -154,7 +157,7 @@ func (r *TaskRepository) Complete(id int, userID int) error {
 	)
 
 	// First check if task exists and belongs to user
-	existingTask, err := r.GetByID(id)
+	existingTask, err := r.GetTaskByID(id)
 	if err != nil {
 		return ErrTaskNotFound
 	}

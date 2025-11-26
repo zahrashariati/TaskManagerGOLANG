@@ -6,7 +6,7 @@ import (
 	"encoding/json"                          //for marshalling and unmarshalling
 	"errors"                                 //for creating errors
 	"strconv"                                //for converting int to string
-	"task_manager/internal/models"           //task struct
+	"github.com/zahrashariati/task-manager/internal/models"           //task struct
 	"time"                                   //for expiration time
 
 	"github.com/redis/go-redis/v9" //redis client library

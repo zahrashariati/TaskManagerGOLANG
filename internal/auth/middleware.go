@@ -24,14 +24,14 @@ func JWTMiddleware(jwtService *JWTService) fiber.Handler {
 		// Missing header
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid authorization header",
+				"error": "invalid authorization header",
 			})
 		}
 
 		// Invalid format
 		if tokenString == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid authorization header",
+				"error": "invalid authorization header",
 			})
 		}
 
@@ -40,7 +40,7 @@ func JWTMiddleware(jwtService *JWTService) fiber.Handler {
 		// Invalid token
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid token",
+				"error": "invalid token",
 			})
 		}
 
@@ -50,5 +50,3 @@ func JWTMiddleware(jwtService *JWTService) fiber.Handler {
 		return c.Next()
 	}
 }
-
-

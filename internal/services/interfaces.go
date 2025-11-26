@@ -1,29 +1,49 @@
 package services
 
 import (
-	"task_manager/internal/models"
+	"time"
+	"github.com/zahrashariati/task-manager/internal/models"
 )
 
-// TaskServiceInterface defines the interface for task service operations
-type TaskServiceInterface interface {
-	GetAllTasks(userID int, showCompleted bool) ([]*models.Task, error)
-	CreateTask(userID int, task *models.Task) error
-	GetTaskByID(id int, userID int) (*models.Task, error)
-	UpdateTask(id int, userID int, task *models.Task) (*models.Task, error)
-	DeleteTask(id int, userID int) error
-	CompleteTask(id int, userID int) (*models.Task, error)
+// TaskRepositoryInterface defines the interface for task repository operations
+// (moved from repo/interfaces.go - interfaces should be defined where they're used)
+type TaskRepositoryInterface interface {
+	Create(task *models.Task) (int, error)
+	GetTaskByID(id int) (*models.Task, error)
+	Update(id int, userID int, task *models.Task) error
+	Delete(id int, userID int) error
+	GetAll(userID int, showCompleted bool) ([]models.Task, error)
+	Complete(id int, userID int) error
 }
 
-// AuthServiceInterface defines the interface for auth service operations
-type AuthServiceInterface interface {
-	Register(user *models.User) (int, error)
-	Login(user *models.User) (*models.User, error)
+// UserRepositoryInterface defines the interface for user repository operations
+// (moved from repo/interfaces.go - interfaces should be defined where they're used)
+type UserRepositoryInterface interface {
+	CreateUser(user *models.User) (int, error)
+	GetByUsername(username string) (*models.User, error)
 	GetUserByID(id int) (*models.User, error)
 	UpdateUser(id int, user *models.User) error
 	DeleteUser(id int) error
-	CreateRefreshToken(user_id int) (string, error)
-	RevokeRefreshToken(user_id int, token string) error
-	ValidateRefreshToken(token string) (int, error)
-	RotateRefreshToken(oldToken string) (int, string, error)
+}
+
+// RTKRepositoryInterface defines the interface for refresh token repository operations
+// (moved from repo/interfaces.go - interfaces should be defined where they're used)
+type RTKRepositoryInterface interface {
+	CreateRefreshToken(userID int, token string, expiresAt time.Time) (int, error)
+	GetRefreshTokenByToken(token string) (*models.RTK, error)
+	RevokeRefreshToken(token string) error
+	GetRefreshTokenByUserID(userID int) (*models.RTK, error)
+	RevokeAllRefreshTokensForUser(userID int) error
+}
+
+// CacheInterface defines the interface for cache operations
+// (moved from cache/interfaces.go - interfaces should be defined where they're used)
+type CacheInterface interface {
+	GetTasks(showCompleted bool) ([]*models.Task, error)
+	SetTasks(showCompleted bool, tasks []*models.Task) error
+	Invalidate() error
+	GetTask(id int) (*models.Task, error)
+	SetTask(id int, task *models.Task) error
+	InvalidateTask(id int) error
 }
 

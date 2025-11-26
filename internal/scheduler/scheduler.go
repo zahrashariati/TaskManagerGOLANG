@@ -1,99 +1,84 @@
+// Runs periodic checks (every 15 minutes)
+// Gets all due tasks from Storage
+// Calls Notifier to send notifications
+// Removes successfully processed tasks from Storage
+
 package scheduler
 
-// import (
-// 	"context"
-// 	"log"
-// 	"time"
-// 	"task_manager/internal/storage"
-// 	"task_manager/internal/notifier"
-// 	"task_manager/internal/consumer"
-// )
+import (
+	"context"
+	"log"
+	"time"
 
-// // Scheduler runs periodic checks on stored tasks
-// type Scheduler struct {
-// 	storage      storage.StorageInterface
-// 	notifier     *notifier.Notifier
-// 	consumer     *consumer.Consumer
-// 	checkInterval time.Duration
-// }
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 
-// // NewScheduler creates a new scheduler
-// func NewScheduler(storage storage.StorageInterface, notifier *notifier.Notifier, consumer *consumer.Consumer, interval time.Duration) *Scheduler {
-// 	return &Scheduler{
-// 		storage:       storage,
-// 		notifier:      notifier,
-// 		consumer:      consumer,
-// 		checkInterval: interval,
-// 	}
-// }
+	"github.com/zahrashariati/task-manager/internal/models"
+)
 
-// // Start starts the scheduler (runs checks periodically)
-// func (s *Scheduler) Start(ctx context.Context) {
-// 	ticker := time.NewTicker(s.checkInterval)
-// 	defer ticker.Stop()
-	
-// 	log.Printf("Scheduler started. Checking every %v", s.checkInterval)
-	
-// 	// Run initial check immediately
-// 	s.checkAndNotify()
-	
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			log.Println("Scheduler stopped")
-// 			return
-// 		case <-ticker.C:
-// 			s.checkAndNotify()
-// 		}
-// 	}
-// }
+// ScheduledTask stores an event with its Kafka message (for committing offset later)
+type ScheduledTask struct {
+	Event         models.TaskScheduledEvent
+	Message       *kafka.Message  // For in-memory storage
+	KafkaMetadata *KafkaMetadata   // For DB storage
+	Processed     bool             // Soft delete flag
+}
 
-// // checkAndNotify checks stored tasks and sends notifications for due ones
-// func (s *Scheduler) checkAndNotify() {
-// 	log.Println("Running scheduled check...")
-	
-// 	// Get all due tasks
-// 	dueTasks := s.storage.GetAllDueTasks()
-	
-// 	if len(dueTasks) == 0 {
-// 		log.Println("No tasks due at this time")
-// 		return
-// 	}
-	
-// 	log.Printf("Found %d due task(s)", len(dueTasks))
-	
-// 	// Process each due task
-// 	for _, task := range dueTasks {
-// 		// Send notification
-// 		if err := s.notifier.ProcessEvent(task.Event); err != nil {
-// 			log.Printf("Error sending notification for task %d: %v", task.Event.TaskID, err)
-// 			// Don't remove from storage if notification failed (will retry next hour)
-// 			continue
-// 		}
-		
-// 		// Commit Kafka message offset (mark as processed)
-// 		var commitErr error
-// 		if task.Message != nil {
-// 			// In-memory storage: commit using Message object
-// 			commitErr = s.consumer.CommitMessage(task.Message)
-// 		} else if task.KafkaMetadata != nil {
-// 			// DB storage: commit using partition/offset
-// 			commitErr = s.consumer.CommitOffset(
-// 				task.KafkaMetadata.Topic,
-// 				task.KafkaMetadata.Partition,
-// 				task.KafkaMetadata.Offset,
-// 			)
-// 		}
-		
-// 		if commitErr != nil {
-// 			log.Printf("Error committing message for task %d: %v", task.Event.TaskID, commitErr)
-// 			// Don't remove from storage if commit failed (will retry next hour)
-// 			continue
-// 		}
-		
-// 		// Remove from storage (successfully processed)
-// 		s.storage.Remove(task.Event.EventID)
-// 		log.Printf("Task %d processed and removed from storage", task.Event.TaskID)
-// 	}
-// }
+// KafkaMetadata stores Kafka message metadata for committing offsets
+type KafkaMetadata struct {
+	Topic     string
+	Partition int32
+	Offset    int64
+}
 
+// StorageInterface defines methods for storing scheduled tasks
+// (interfaces should be defined where they're used - scheduler is the primary user)
+type StorageInterface interface {
+	Add(event models.TaskScheduledEvent, msg *kafka.Message)
+	GetAllDueTasks() []*ScheduledTask
+	Remove(eventID string)
+}
+
+// CallbackFunc defines the callback function type for processing due tasks
+// (interfaces should be defined where they're used)
+type CallbackFunc func(storage StorageInterface)
+
+// Scheduler runs periodic checks on stored tasks
+type Scheduler struct {
+	storage      StorageInterface
+	callback     CallbackFunc
+	checkInterval time.Duration
+}
+
+// NewScheduler creates a new scheduler
+func NewScheduler(storage StorageInterface, callback CallbackFunc, interval time.Duration) *Scheduler {
+	return &Scheduler{
+		storage:       storage,
+		callback:      callback,
+		checkInterval: interval,
+	}
+}
+
+// Start starts the scheduler (runs checks periodically)
+// Uses channels with select to wait for EITHER cancellation OR ticker events
+// This is non-blocking in the sense that we can respond to cancellation immediately
+// even if we're waiting for the next tick. Without channels/select, we couldn't
+// handle both events simultaneously.
+func (s *Scheduler) Start(ctx context.Context) {
+	ticker := time.NewTicker(s.checkInterval)
+	defer ticker.Stop()
+	
+	log.Printf("scheduler started. Checking every %v", s.checkInterval)
+	
+	// Run initial check immediately
+	s.callback(s.storage)
+	
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("scheduler stopped")
+			return
+		case <-ticker.C:
+			s.callback(s.storage)
+		}
+	}
+}

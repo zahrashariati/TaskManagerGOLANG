@@ -4,19 +4,19 @@
 package handlers
 
 import (
-	"errors"                                 //standard library errors (for errors.Is)
-	"strconv"                                //for converting strings to integers
-	"task_manager/internal/models"           //task models
-	"task_manager/internal/services"         //logic layer
+	"errors"
+	"strconv"
 
-	"github.com/gofiber/fiber/v2" //Fiber web framework
+	"github.com/gofiber/fiber/v2"
+
+	"github.com/zahrashariati/task-manager/internal/models"
 )
 
 type TaskHandler struct {
-	service services.TaskServiceInterface //holds reference to TaskService interface
+	service TaskServiceInterface //holds reference to TaskService interface
 }
 
-func NewTaskHandler(service services.TaskServiceInterface) *TaskHandler {
+func NewTaskHandler(service TaskServiceInterface) *TaskHandler {
 	return &TaskHandler{service: service}
 }
 
@@ -27,7 +27,7 @@ func (h *TaskHandler) GetAllTasks(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(int)
 	if !ok || userID == 0 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "User not logged in",
+			"error": "user not logged in",
 		})
 	}
 	// Get query parameter
@@ -52,14 +52,14 @@ func (h *TaskHandler) CreateTask(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(int)
 	if !ok || userID == 0 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "User not logged in",
+			"error": "user not logged in",
 		})
 	}
 	// Parse JSON body into Task struct
 	var task models.Task
 	if err := c.BodyParser(&task); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid JSON",
+			"error": "invalid JSON",
 		})
 	}
 
@@ -71,7 +71,7 @@ func (h *TaskHandler) CreateTask(c *fiber.Ctx) error {
 		// Check error type
 		if errors.Is(err, ErrTitleRequired) {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Title is required",
+				"error": "title is required",
 			})
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -90,7 +90,7 @@ func (h *TaskHandler) GetTaskByID(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(int)
 	if !ok || userID == 0 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "User not logged in",
+			"error": "user not logged in",
 		})
 	}
 	// Get ID from URL parameter
@@ -98,7 +98,7 @@ func (h *TaskHandler) GetTaskByID(c *fiber.Ctx) error {
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid task ID",
+			"error": "invalid task ID",
 		})
 	}
 
@@ -110,7 +110,7 @@ func (h *TaskHandler) GetTaskByID(c *fiber.Ctx) error {
 	if err != nil {
 		if errors.Is(err, ErrTaskNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "Task not found",
+				"error": "task not found",
 			})
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -130,7 +130,7 @@ func (h *TaskHandler) UpdateTask(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(int)
 	if !ok || userID == 0 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "User not logged in",
+			"error": "user not logged in",
 		})
 	}
 	// Get ID from URL parameter
@@ -138,7 +138,7 @@ func (h *TaskHandler) UpdateTask(c *fiber.Ctx) error {
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid task ID",
+			"error": "invalid task ID",
 		})
 	}
 
@@ -146,7 +146,7 @@ func (h *TaskHandler) UpdateTask(c *fiber.Ctx) error {
 	var task models.Task
 	if err := c.BodyParser(&task); err != nil { //pointer because it writes to the struct
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid JSON",
+			"error": "invalid JSON",
 		})
 	}
 
@@ -158,7 +158,7 @@ func (h *TaskHandler) UpdateTask(c *fiber.Ctx) error {
 	if err != nil {
 		if errors.Is(err, ErrTaskNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "Task not found",
+				"error": "task not found",
 			})
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -177,7 +177,7 @@ func (h *TaskHandler) DeleteTask(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(int)
 	if !ok || userID == 0 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "User not logged in",
+			"error": "user not logged in",
 		})
 	}
 	// Get ID from URL parameter
@@ -185,7 +185,7 @@ func (h *TaskHandler) DeleteTask(c *fiber.Ctx) error {
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid task ID",
+			"error": "invalid task ID",
 		})
 	}
 
@@ -196,7 +196,7 @@ func (h *TaskHandler) DeleteTask(c *fiber.Ctx) error {
 	if err := h.service.DeleteTask(id, userID); err != nil {
 		if errors.Is(err, ErrTaskNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "Task not found",
+				"error": "task not found",
 			})
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -206,7 +206,7 @@ func (h *TaskHandler) DeleteTask(c *fiber.Ctx) error {
 
 	// Return success
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "Task deleted successfully",
+		"message": "task deleted successfully",
 	})
 }
 
@@ -217,7 +217,7 @@ func (h *TaskHandler) CompleteTask(c *fiber.Ctx) error {
 	userID, ok := c.Locals("userID").(int)
 	if !ok || userID == 0 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "User not logged in",
+			"error": "user not logged in",
 		})
 	}
 	// Get ID from URL parameter
@@ -225,7 +225,7 @@ func (h *TaskHandler) CompleteTask(c *fiber.Ctx) error {
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid task ID",
+			"error": "invalid task ID",
 		})
 	}
 
@@ -237,7 +237,7 @@ func (h *TaskHandler) CompleteTask(c *fiber.Ctx) error {
 	if err != nil {
 		if errors.Is(err, ErrTaskNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "Task not found",
+				"error": "task not found",
 			})
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

@@ -6,14 +6,16 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
-	"time"
-	"github.com/golang-jwt/jwt/v5"
 	"errors"
+	"fmt"
 	"strings"
-	"github.com/google/uuid"
+	"time"
+
 	"github.com/gofiber/fiber/v2"
-	apperrors "task_manager/internal/errors"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+
+	apperrors "github.com/zahrashariati/task-manager/internal/errors"
 )
 
 type JWTService struct {
@@ -79,6 +81,16 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+// GetUserID implements handlers.ClaimsInterface
+func (c *Claims) GetUserID() int {
+	return c.UserID
+}
+
+// GetUsername implements handlers.ClaimsInterface
+func (c *Claims) GetUsername() string {
+	return c.Username
+}
+
 // GenerateToken function:
 // - Create Claims with userID, username, expiration (24 hours)
 // - Create JWT token with RS256 method
@@ -92,9 +104,9 @@ func (s *JWTService) GenerateToken(userId int, username string, expiresAt time.T
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt: jwt.NewNumericDate(time.Now()),
-			Issuer: "task_manager",
+			Issuer: "github.com/zahrashariati/task-manager",
 			Subject: fmt.Sprintf("%d", userId),
-			Audience: jwt.ClaimStrings{"task_manager"},
+			Audience: jwt.ClaimStrings{"github.com/zahrashariati/task-manager"},
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			ID: uuid.New().String(),
 		},
